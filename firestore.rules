@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, format: email)
+    //   - displayName: string
+    //   - fullName: string
+    //   - age: number
+    //   - origin: string
+    //   - photoURL: string
+    //   - createdAt: timestamp
+    //
+    // Collection: foodItems/{itemId}
+    // Fields:
+    //   - id: string
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - category: string
+    //   - quantity: number
+    //   - unit: string
+    //   - expiryDate: timestamp (required)
+    //   - addedAt: timestamp
+    //   - status: string (required, enum: ["available", "consumed", "expired"])
+    //
+    // Collection: usageHistory/{historyId}
+    // Fields:
+    //   - id: string
+    //   - userId: string (required)
+    //   - foodName: string (required)
+    //   - action: string (required, enum: ["consumed", "discarded"])
+    //   - quantity: number
+    //   - unit: string
+    //   - timestamp: timestamp (required)
+    //   - notes: string
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             (!('fullName' in data) || data.fullName is string) &&
+             (!('age' in data) || data.age is number) &&
+             (!('origin' in data) || data.origin is string);
+    }
+
+    function isValidFoodItem(data) {
+      return data.keys().hasAll(['userId', 'name', 'expiryDate', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['available', 'consumed', 'discarded', 'expired'] &&
+             data.expiryDate is timestamp;
+    }
+
+    function isValidUsageHistory(data) {
+      return data.keys().hasAll(['userId', 'foodName', 'action', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.foodName is string &&
+             data.action in ['consumed', 'discarded'] &&
+             data.timestamp is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isValidUser(request.resource.data);
+      allow update: if isOwner(uid) && isValidUser(request.resource.data);
+    }
+
+    match /foodItems/{itemId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidFoodItem(request.resource.data);
+      allow update: if isDocOwner() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status in ['available', 'consumed', 'discarded', 'expired']) ||
+        isValidFoodItem(request.resource.data)
+      );
+      allow delete: if isDocOwner();
+    }
+
+    match /usageHistory/{historyId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidUsageHistory(request.resource.data);
+      allow update: if isDocOwner() && isValidUsageHistory(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+  }
+}

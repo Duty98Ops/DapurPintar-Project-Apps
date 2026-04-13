@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "fullName": { "type": "string" },
+        "age": { "type": "number" },
+        "origin": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "FoodItem": {
+      "title": "Food Item",
+      "description": "A food item in the user's pantry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "expiryDate": { "type": "string", "format": "date-time" },
+        "addedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["available", "consumed", "expired"] }
+      },
+      "required": ["userId", "name", "expiryDate", "status"]
+    },
+    "UsageHistory": {
+      "title": "Usage History",
+      "description": "History of food usage and leftovers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "foodName": { "type": "string" },
+        "action": { "type": "string", "enum": ["consumed", "discarded"] },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "foodName", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{uid}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "foodItems/{itemId}": {
+      "schema": "FoodItem",
+      "description": "Food items in the pantry"
+    },
+    "usageHistory/{historyId}": {
+      "schema": "UsageHistory",
+      "description": "Usage history records"
+    }
+  }
+}
