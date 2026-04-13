@@ -996,11 +996,13 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
           addedAt: serverTimestamp()
         });
       }
+      
+      // Reset state and call onComplete immediately
+      setIsSubmitting(false);
       onComplete();
     } catch (e) {
-      handleFirestoreError(e, editingItem ? OperationType.UPDATE : OperationType.CREATE, editingItem ? `foodItems/${editingItem.id}` : "foodItems");
-    } finally {
       setIsSubmitting(false);
+      handleFirestoreError(e, editingItem ? OperationType.UPDATE : OperationType.CREATE, editingItem ? `foodItems/${editingItem.id}` : "foodItems");
     }
   };
 
@@ -1116,9 +1118,10 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
     if (foodItems.length === 0) return;
     setLoading(true);
     try {
-      const names = foodItems.map(i => i.name);
-      const recs = await getRecipeRecommendations(names);
-      setRecipes(recs);
+      const ingredientData = foodItems.map(i => ({ name: i.name, category: i.category }));
+      const recs = await getRecipeRecommendations(ingredientData);
+      // Sort by match score descending
+      setRecipes(recs.sort((a, b) => b.matchScore - a.matchScore));
     } catch (e) {
       console.error("Recipe fetch error:", e);
     } finally {
@@ -1181,23 +1184,48 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
               className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/40 border border-gray-100 group hover:border-emerald-500/30 transition-all duration-500"
             >
               <div className="flex items-start justify-between mb-6">
-                <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors">{recipe.title}</h3>
-                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
-                  <Clock size={12} />
-                  {recipe.prepTime}
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors">{recipe.title}</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
+                      <Clock size={12} />
+                      {recipe.prepTime}
+                    </div>
+                    <div className={`flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest ${
+                      recipe.matchScore > 80 ? 'bg-emerald-100 text-emerald-700' : 
+                      recipe.matchScore > 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      Cocok: {recipe.matchScore}%
+                    </div>
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-8">
-                <div>
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Bahan Utama</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {recipe.ingredients.map((ing, i) => (
-                      <span key={i} className="text-xs bg-gray-50 px-4 py-2 rounded-2xl text-gray-600 font-bold border border-gray-100 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
-                        {ing}
-                      </span>
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Bahan yang Dimiliki</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {recipe.ingredients.filter(ing => !recipe.missingIngredients.some(m => ing.toLowerCase().includes(m.toLowerCase()))).map((ing, i) => (
+                        <span key={i} className="text-xs bg-emerald-50 px-4 py-2 rounded-2xl text-emerald-700 font-bold border border-emerald-100 transition-colors">
+                          {ing}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+
+                  {recipe.missingIngredients.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-4">Bahan yang Kurang</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {recipe.missingIngredients.map((ing, i) => (
+                          <span key={i} className="text-xs bg-red-50 px-4 py-2 rounded-2xl text-red-700 font-bold border border-red-100 transition-colors">
+                            {ing}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="relative">
