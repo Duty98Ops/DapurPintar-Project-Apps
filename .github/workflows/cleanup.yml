@@ -25,4 +25,5 @@ jobs:
       - name: Run cleanup script
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
         run: npx tsx scripts/cleanup.ts

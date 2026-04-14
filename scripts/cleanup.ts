@@ -20,14 +20,25 @@ async function cleanup() {
 
   try {
     const serviceAccount = JSON.parse(serviceAccountJson);
+    const databaseId = (process.env.FIRESTORE_DATABASE_ID || '(default)').trim();
+    const projectId = serviceAccount.project_id;
+    const expectedProjectId = "gen-lang-client-0600647085";
+
+    console.log(`Project ID: ${projectId} (length: ${projectId.length})`);
+    console.log(`Database ID: ${databaseId} (length: ${databaseId.length})`);
+
+    if (projectId !== expectedProjectId) {
+      console.warn(`Warning: Project ID mismatch! Expected ${expectedProjectId}, but got ${projectId}. This might cause NOT_FOUND errors.`);
+    }
     
     if (getApps().length === 0) {
       initializeApp({
-        credential: cert(serviceAccount)
+        credential: cert(serviceAccount),
+        projectId: projectId // Explicitly set project ID
       });
     }
 
-    const db = getFirestore();
+    const db = getFirestore(databaseId);
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
     const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
