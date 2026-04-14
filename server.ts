@@ -17,10 +17,11 @@ async function startServer() {
   app.use(express.json());
 
   // Gemini AI Setup (Server-side)
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+  // Using a custom name to avoid AI Studio's reserved name "GEMINI_API_KEY"
+  const GEMINI_API_KEY = process.env.MY_CUSTOM_GEMINI_KEY || process.env.GEMINI_API_KEY || "";
   
   if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
-    console.warn("WARNING: GEMINI_API_KEY is empty or using placeholder value!");
+    console.warn("WARNING: Gemini API Key is empty or using placeholder value!");
   }
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
