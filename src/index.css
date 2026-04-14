@@ -9,9 +9,12 @@
   --radius-4xl: 2rem;
 }
 
+/* Force class-based dark mode in Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
-    @apply font-sans text-gray-900 antialiased bg-gray-50;
+    @apply font-sans text-gray-900 dark:text-gray-100 antialiased bg-gray-50 dark:bg-gray-950 transition-colors duration-300;
   }
   
   h1, h2, h3, h4 {
@@ -20,7 +23,7 @@
 }
 
 .glass-card {
-  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-white/20 dark:border-gray-800 shadow-xl;
 }
 
 .bento-grid {

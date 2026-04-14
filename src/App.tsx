@@ -30,7 +30,9 @@ import {
   ArrowLeft,
   Edit2,
   User as UserIcon,
-  Camera
+  Camera,
+  Moon,
+  Sun
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe } from "./services/geminiService";
@@ -141,11 +143,11 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   if (hasError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
-        <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center bg-red-50 dark:bg-gray-950 p-4 transition-colors duration-300">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl max-w-md w-full text-center border border-red-100 dark:border-red-900/20">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Terjadi Kesalahan</h2>
-          <p className="text-gray-600 mb-4">{errorInfo || "Maaf, ada masalah saat memproses data."}</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Terjadi Kesalahan</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{errorInfo || "Maaf, ada masalah saat memproses data."}</p>
           <button 
             onClick={() => window.location.reload()}
             className="w-full py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors"
@@ -178,6 +180,28 @@ export default function App() {
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+    } catch (e) {}
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    console.log('[Theme] Current mode:', isDarkMode ? 'dark' : 'light');
+    const root = document.documentElement;
+    const body = document.body;
+    if (isDarkMode) {
+      root.classList.add('dark');
+      body.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      body.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Auth Listener
   useEffect(() => {
@@ -273,7 +297,9 @@ export default function App() {
   }, [user, isAuthReady]);
 
   const handleLogin = async () => {
+    if (isAuthSubmitting) return;
     setLoginError(null);
+    setIsAuthSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
@@ -283,9 +309,14 @@ export default function App() {
         setLoginError("Proses masuk dibatalkan. Silakan coba lagi.");
       } else if (error.code === "auth/popup-blocked") {
         setLoginError("Popup diblokir oleh browser. Silakan izinkan popup untuk masuk.");
+      } else if (error.code === "auth/cancelled-popup-request") {
+        // This happens if multiple popups are requested, we can just ignore it or show a subtle message
+        console.log("Concurrent popup request cancelled");
       } else {
         setLoginError("Gagal masuk. Silakan periksa koneksi internet Anda.");
       }
+    } finally {
+      setIsAuthSubmitting(false);
     }
   };
 
@@ -333,11 +364,11 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50 dark:bg-gray-950 transition-colors duration-300">
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full shadow-lg shadow-emerald-100"
+          className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full shadow-lg shadow-emerald-100 dark:shadow-none"
         />
       </div>
     );
@@ -345,7 +376,8 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-white flex flex-col lg:flex-row overflow-hidden">
+      <div key={isDarkMode ? 'dark-landing' : 'light-landing'} className={isDarkMode ? 'dark' : ''}>
+        <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col lg:flex-row overflow-hidden transition-colors duration-300">
         {/* Left Side - Visual Branding */}
         <div className="hidden lg:flex lg:w-1/2 bg-emerald-600 relative items-center justify-center p-12 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15)_0%,transparent_50%)]" />
@@ -381,7 +413,17 @@ export default function App() {
         </div>
 
         {/* Right Side - Login Form */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-24 bg-gray-50/50">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-24 bg-white dark:bg-gray-950 transition-colors relative">
+          {/* Theme Toggle for Landing Page */}
+          <div className="absolute top-8 right-8 z-50">
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-105 transition-all"
+            >
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
+
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -391,18 +433,18 @@ export default function App() {
               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
                 <Utensils className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">DapurPintar</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">DapurPintar</h1>
             </div>
 
             <div className="mb-10">
-              <h2 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
+              <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">
                 {authMode === "google" 
                   ? "Selamat Datang" 
                   : (showForgotPassword 
                       ? "Lupa Kata Sandi?" 
                       : (isSignUp ? "Buat Akun" : "Masuk Kembali"))}
               </h2>
-              <p className="text-gray-500 font-medium">
+              <p className="text-gray-500 dark:text-gray-400 font-medium">
                 {authMode === "google" 
                   ? "Masuk untuk mulai mengelola dapur Anda dengan lebih baik." 
                   : (showForgotPassword 
@@ -415,9 +457,9 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-8 p-4 bg-red-50 text-red-600 text-sm rounded-2xl border border-red-100 flex items-center gap-3"
+                className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-2xl border border-red-100 dark:border-red-900/40 flex items-center gap-3"
               >
-                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center flex-shrink-0">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
                 <span className="font-medium">{loginError}</span>
@@ -434,22 +476,27 @@ export default function App() {
                   className="space-y-4"
                 >
                   <button 
+                    disabled={isAuthSubmitting}
                     onClick={handleLogin}
-                    className="w-full flex items-center justify-center gap-4 py-5 bg-white text-gray-700 rounded-2xl font-bold hover:bg-gray-50 transition-all border-2 border-gray-100 shadow-sm group"
+                    className="w-full flex items-center justify-center gap-4 py-5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 rounded-2xl font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all border-2 border-gray-100 dark:border-gray-800 shadow-sm group disabled:opacity-50"
                   >
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-                    <span>Lanjutkan dengan Google</span>
-                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:translate-x-1 transition-transform" />
+                    {isAuthSubmitting ? (
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                    ) : (
+                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
+                    )}
+                    <span>{isAuthSubmitting ? "Memproses..." : "Lanjutkan dengan Google"}</span>
+                    {!isAuthSubmitting && <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:translate-x-1 transition-transform" />}
                   </button>
 
                   <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-50 px-4 text-gray-400 font-bold tracking-widest">Atau</span></div>
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800"></div></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-50 dark:bg-gray-950 px-4 text-gray-400 dark:text-gray-600 font-bold tracking-widest transition-colors">Atau</span></div>
                   </div>
 
                   <button 
                     onClick={() => setAuthMode("email")}
-                    className="w-full py-5 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
+                    className="w-full py-5 bg-gray-900 dark:bg-emerald-600 text-white rounded-2xl font-bold hover:bg-gray-800 dark:hover:bg-emerald-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                   >
                     Gunakan Email & Password
                   </button>
@@ -464,19 +511,19 @@ export default function App() {
                   className="space-y-4"
                 >
                   {resetSent ? (
-                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl text-center space-y-4">
-                      <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircle2 className="text-emerald-600" />
+                    <div className="p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-center space-y-4">
+                      <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />
                       </div>
-                      <h3 className="font-bold text-emerald-900">Email Terkirim!</h3>
-                      <p className="text-sm text-emerald-700">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
+                      <h3 className="font-bold text-emerald-900 dark:text-emerald-400">Email Terkirim!</h3>
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
                       <button 
                         type="button"
                         onClick={() => {
                           setShowForgotPassword(false);
                           setResetSent(false);
                         }}
-                        className="text-sm font-bold text-emerald-600 hover:underline"
+                        className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                       >
                         Kembali ke Login
                       </button>
@@ -485,37 +532,37 @@ export default function App() {
                     <>
                       {isSignUp && !showForgotPassword && (
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                          <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
                           <input 
                             required
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                            className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
                             placeholder="Nama Anda"
                           />
                         </div>
                       )}
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                        <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Email</label>
                         <input 
                           required
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                          className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
                           placeholder="email@contoh.com"
                         />
                       </div>
                       {!showForgotPassword && (
                         <div className="space-y-2">
                           <div className="flex justify-between items-center ml-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kata Sandi</label>
+                            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Kata Sandi</label>
                             {!isSignUp && (
                               <button 
                                 type="button"
                                 onClick={() => setShowForgotPassword(true)}
-                                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-widest"
+                                className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 uppercase tracking-widest"
                               >
                                 Lupa?
                               </button>
@@ -526,7 +573,7 @@ export default function App() {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                            className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
                             placeholder="••••••••"
                           />
                         </div>
@@ -553,7 +600,7 @@ export default function App() {
                           <button 
                             type="button"
                             onClick={() => setIsSignUp(!isSignUp)}
-                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                            className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
                           >
                             {isSignUp ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar"}
                           </button>
@@ -561,7 +608,7 @@ export default function App() {
                           <button 
                             type="button"
                             onClick={() => setShowForgotPassword(false)}
-                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                            className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
                           >
                             Kembali ke Login
                           </button>
@@ -573,7 +620,7 @@ export default function App() {
                             setLoginError(null);
                             setShowForgotPassword(false);
                           }}
-                          className="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                          className="text-sm font-bold text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
                         >
                           Kembali ke Pilihan Lain
                         </button>
@@ -590,20 +637,22 @@ export default function App() {
           </motion.div>
         </div>
       </div>
+    </div>
     );
   }
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-[#F8FAFC] pb-32">
+      <div key={isDarkMode ? 'dark-app' : 'light-app'} className={isDarkMode ? 'dark' : ''}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-32 transition-colors duration-300">
         {/* Modern Header */}
-        <header className="bg-white/80 backdrop-blur-xl px-6 py-5 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
+        <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl px-6 py-5 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none">
               <Utensils className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-none mb-1">DapurPintar</h1>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-none mb-1">DapurPintar</h1>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sistem Aktif</span>
@@ -613,20 +662,27 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-bold text-gray-900">{user.displayName || "Pengguna"}</span>
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{user.displayName || "Pengguna"}</span>
               <span className="text-[10px] text-gray-400 font-medium">{user.email}</span>
             </div>
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-gray-800 transition-all"
+                title={isDarkMode ? "Mode Terang" : "Mode Gelap"}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              <button 
                 onClick={() => setActiveTab("profile")}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "profile" ? "bg-emerald-50 text-emerald-600" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "profile" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-gray-800"}`}
                 title="Edit Profil"
               >
                 <UserIcon className="w-5 h-5" />
               </button>
               <button 
                 onClick={handleLogout}
-                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
                 title="Keluar"
               >
                 <LogOut className="w-5 h-5" />
@@ -701,6 +757,7 @@ export default function App() {
           </nav>
         </div>
       </div>
+    </div>
     </ErrorBoundary>
   );
 }
@@ -802,25 +859,25 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
       {/* Alerts Section */}
       {(expiringSoon.length > 0 || expired.length > 0) && (
         <section className="space-y-4">
-          <h2 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Peringatan Penting</h2>
+          <h2 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Peringatan Penting</h2>
           <div className="grid gap-3">
             {expired.map(item => (
               <motion.div 
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 key={item.id} 
-                className="bg-red-50/50 border border-red-100 p-4 rounded-3xl flex items-center gap-4 group"
+                className="bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-4 rounded-3xl flex items-center gap-4 group transition-colors"
               >
-                <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-red-900">{item.name}</h3>
-                  <p className="text-xs text-red-600 font-medium">Sudah kedaluwarsa sejak {item.expiryDate ? format(item.expiryDate.toDate(), "dd MMM") : "..."}</p>
+                  <h3 className="font-bold text-red-900 dark:text-red-200">{item.name}</h3>
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">Sudah kedaluwarsa sejak {item.expiryDate ? format(item.expiryDate.toDate(), "dd MMM") : "..."}</p>
                 </div>
                 <button 
                   onClick={() => handleAction(item, "discarded")} 
-                  className="w-10 h-10 flex items-center justify-center bg-white text-red-400 hover:text-red-600 rounded-xl shadow-sm transition-all"
+                  className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 text-red-400 hover:text-red-600 rounded-xl shadow-sm transition-all"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -831,18 +888,18 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 key={item.id} 
-                className="bg-amber-50/50 border border-amber-100 p-4 rounded-3xl flex items-center gap-4"
+                className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 p-4 rounded-3xl flex items-center gap-4 transition-colors"
               >
-                <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-6 h-6 text-amber-600" />
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-amber-900">{item.name}</h3>
-                  <p className="text-xs text-amber-600 font-medium">Kedaluwarsa dalam {item.expiryDate ? differenceInDays(item.expiryDate.toDate(), new Date()) : "..."} hari</p>
+                  <h3 className="font-bold text-amber-900 dark:text-amber-200">{item.name}</h3>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Kedaluwarsa dalam {item.expiryDate ? differenceInDays(item.expiryDate.toDate(), new Date()) : "..."} hari</p>
                 </div>
                 <button 
                   onClick={() => handleAction(item, "consumed")} 
-                  className="w-10 h-10 flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 rounded-xl shadow-sm transition-all"
+                  className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl shadow-sm transition-all"
                 >
                   <CheckCircle2 className="w-5 h-5" />
                 </button>
@@ -856,26 +913,26 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Inventaris Dapur</h2>
-            <p className="text-sm text-gray-400 font-medium">Kelola semua stok makanan Anda di sini.</p>
+            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Inventaris Dapur</h2>
+            <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Kelola semua stok makanan Anda di sini.</p>
           </div>
           <div className="flex gap-2">
-            <button className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-emerald-600 transition-colors shadow-sm">
+            <button className="p-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-gray-400 hover:text-emerald-600 transition-colors shadow-sm">
               <Search size={20} />
             </button>
           </div>
         </div>
 
         {foodItems.length === 0 ? (
-          <div className="bg-white p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 text-center">
-            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <Plus className="w-10 h-10 text-gray-200" />
+          <div className="bg-white dark:bg-gray-900 p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 dark:border-gray-800 text-center transition-colors">
+            <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Plus className="w-10 h-10 text-gray-200 dark:text-gray-700" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Dapur Masih Kosong</h3>
-            <p className="text-gray-400 font-medium mb-8">Mulai tambahkan stok makanan Anda untuk mendapatkan pengingat cerdas.</p>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Dapur Masih Kosong</h3>
+            <p className="text-gray-400 dark:text-gray-500 font-medium mb-8">Mulai tambahkan stok makanan Anda untuk mendapatkan pengingat cerdas.</p>
             <button 
               onClick={() => setActiveTab("add")}
-              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
             >
               Tambah Sekarang
             </button>
@@ -889,24 +946,24 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: idx * 0.05 }}
                 key={item.id} 
-                className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-5 group hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
+                className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-5 group hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-emerald-900/10 transition-all duration-300"
               >
-                <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-50 transition-colors duration-300">
-                  <Utensils className="w-7 h-7 text-gray-300 group-hover:text-emerald-600 transition-colors duration-300" />
+                <div className="w-14 h-14 bg-gray-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/20 transition-colors duration-300">
+                  <Utensils className="w-7 h-7 text-gray-300 dark:text-gray-700 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-gray-900 truncate">{item.name}</h3>
-                    <span className="px-2 py-0.5 bg-gray-100 text-[9px] font-black text-gray-400 uppercase tracking-widest rounded-md">
+                    <h3 className="font-bold text-gray-900 dark:text-white truncate">{item.name}</h3>
+                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest rounded-md">
                       {item.category}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                    <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                       <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                       {item.quantity} {item.unit}
                     </div>
-                    <div className="flex items-center gap-1 text-xs font-bold text-gray-400">
+                    <div className="flex items-center gap-1 text-xs font-bold text-gray-400 dark:text-gray-500">
                       <Calendar size={12} />
                       {item.expiryDate ? format(item.expiryDate.toDate(), "dd MMM") : "..."}
                     </div>
@@ -916,14 +973,14 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
                   <div className="flex gap-2">
                     <button 
                       onClick={() => handleAction(item, "consumed")}
-                      className="w-9 h-9 flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+                      className="w-9 h-9 flex items-center justify-center bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-xl transition-all"
                       title="Tandai sudah dikonsumsi"
                     >
                       <CheckCircle2 size={18} />
                     </button>
                     <button 
                       onClick={() => onEdit(item)}
-                      className="w-9 h-9 flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
+                      className="w-9 h-9 flex items-center justify-center bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all"
                       title="Edit bahan"
                     >
                       <Edit2 size={16} />
@@ -931,7 +988,7 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
                   </div>
                   <button 
                     onClick={() => handleAction(item, "discarded")}
-                    className="w-9 h-9 flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all w-full"
+                    className="w-9 h-9 flex items-center justify-center bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/40 hover:text-red-500 dark:hover:text-red-400 rounded-xl transition-all w-full"
                     title="Buang (kedaluwarsa/rusak)"
                   >
                     <Trash2 size={18} />
@@ -948,12 +1005,12 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
 
 function StatCard({ label, value, icon, color }: { label: string, value: number | string, icon: React.ReactNode, color: string }) {
   return (
-    <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm">
-      <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center mb-4`}>
+    <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+      <div className={`w-10 h-10 ${color} dark:bg-opacity-10 rounded-xl flex items-center justify-center mb-4`}>
         {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
       </div>
-      <div className="text-2xl font-black text-gray-900 mb-0.5">{value}</div>
-      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
+      <div className="text-2xl font-black text-gray-900 dark:text-white mb-0.5">{value}</div>
+      <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{label}</div>
     </div>
   );
 }
@@ -1012,17 +1069,17 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 max-w-xl mx-auto"
+      className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 max-w-xl mx-auto transition-colors"
     >
       <div className="flex items-center gap-4 mb-10">
-        <button onClick={onComplete} className="w-12 h-12 flex items-center justify-center bg-gray-50 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 rounded-2xl transition-all">
+        <button onClick={onComplete} className="w-12 h-12 flex items-center justify-center bg-gray-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-400 hover:text-emerald-600 rounded-2xl transition-all">
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
             {editingItem ? "Edit Stok" : "Tambah Stok"}
           </h2>
-          <p className="text-sm text-gray-400 font-medium">
+          <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">
             {editingItem ? "Perbarui detail bahan makanan Anda." : "Masukkan detail bahan makanan baru."}
           </p>
         </div>
@@ -1030,33 +1087,33 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-3">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Nama Makanan</label>
+          <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Nama Makanan</label>
           <input 
             required
             type="text" 
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Contoh: Telur Ayam Kampung"
-            className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 placeholder:text-gray-300"
+            className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Jumlah & Satuan</label>
-            <div className="flex items-center bg-gray-50 rounded-[1.5rem] border-2 border-transparent focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
+            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Jumlah & Satuan</label>
+            <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-[1.5rem] border-2 border-transparent focus-within:bg-white dark:focus-within:bg-gray-900 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
               <input 
                 type="number" 
                 step="0.1"
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
                 placeholder="0"
-                className="w-full px-6 py-5 bg-transparent border-none focus:ring-0 font-bold text-gray-900 no-spinner"
+                className="w-full px-6 py-5 bg-transparent border-none focus:ring-0 font-bold text-gray-900 dark:text-white no-spinner"
               />
               <select 
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
-                className="bg-emerald-50 border-none focus:ring-0 text-xs font-black text-emerald-600 px-4 py-2 rounded-xl mr-3"
+                className="bg-emerald-50 dark:bg-emerald-900/20 border-none focus:ring-0 text-xs font-black text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-xl mr-3"
               >
                 <option>pcs</option>
                 <option>kg</option>
@@ -1067,27 +1124,27 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
             </div>
           </div>
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Kategori</label>
+            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Kategori</label>
             <select 
               value={category}
               onChange={e => setCategory(e.target.value)}
-              className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+              className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white"
             >
-              {categories.map(c => <option key={c}>{c}</option>)}
+              {categories.map(c => <option key={c} className="dark:bg-gray-900">{c}</option>)}
             </select>
           </div>
         </div>
 
         <div className="space-y-3">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Tanggal Kedaluwarsa</label>
+          <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Tanggal Kedaluwarsa</label>
           <div className="relative group">
-            <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
+            <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 dark:text-gray-700 group-focus-within:text-emerald-500 transition-colors" />
             <input 
               required
               type="date" 
               value={expiryDate}
               onChange={e => setExpiryDate(e.target.value)}
-              className="w-full pl-16 pr-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+              className="w-full pl-16 pr-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white"
             />
           </div>
         </div>
@@ -1095,7 +1152,7 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
         <button 
           disabled={isSubmitting}
           type="submit"
-          className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 disabled:opacity-50 flex items-center justify-center gap-3"
+          className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center gap-3"
         >
           {isSubmitting ? (
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
@@ -1143,13 +1200,13 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Ide Masakan</h2>
-          <p className="text-sm text-gray-400 font-medium">Berdasarkan stok yang Anda miliki.</p>
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Ide Masakan</h2>
+          <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Berdasarkan stok yang Anda miliki.</p>
         </div>
         <button 
           onClick={fetchRecipes}
           disabled={loading}
-          className="w-14 h-14 flex items-center justify-center bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50"
+          className="w-14 h-14 flex items-center justify-center bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none disabled:opacity-50"
         >
           <ChefHat className={`${loading ? 'animate-bounce' : ''}`} size={24} />
         </button>
@@ -1158,21 +1215,21 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
       {loading ? (
         <div className="space-y-6">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 animate-pulse space-y-6">
-              <div className="h-8 bg-gray-100 rounded-xl w-3/4"></div>
-              <div className="h-4 bg-gray-100 rounded-lg w-1/2"></div>
+            <div key={i} className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 animate-pulse space-y-6">
+              <div className="h-8 bg-gray-100 dark:bg-gray-800 rounded-xl w-3/4"></div>
+              <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-lg w-1/2"></div>
               <div className="flex gap-2">
-                <div className="h-8 bg-gray-50 rounded-xl w-20"></div>
-                <div className="h-8 bg-gray-50 rounded-xl w-24"></div>
+                <div className="h-8 bg-gray-50 dark:bg-gray-800 rounded-xl w-20"></div>
+                <div className="h-8 bg-gray-50 dark:bg-gray-800 rounded-xl w-24"></div>
               </div>
             </div>
           ))}
         </div>
       ) : recipes.length === 0 ? (
-        <div className="bg-white p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 text-center">
-          <ChefHat className="w-20 h-20 text-gray-100 mx-auto mb-6" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Belum Ada Resep</h3>
-          <p className="text-gray-400 font-medium">Tambahkan bahan makanan untuk mendapatkan rekomendasi resep cerdas.</p>
+        <div className="bg-white dark:bg-gray-900 p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 dark:border-gray-800 text-center transition-colors">
+          <ChefHat className="w-20 h-20 text-gray-100 dark:text-gray-800 mx-auto mb-6" />
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Belum Ada Resep</h3>
+          <p className="text-gray-400 dark:text-gray-500 font-medium">Tambahkan bahan makanan untuk mendapatkan rekomendasi resep cerdas.</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -1182,19 +1239,19 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: idx * 0.1 }}
               key={idx} 
-              className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/40 border border-gray-100 group hover:border-emerald-500/30 transition-all duration-500"
+              className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/40 dark:shadow-none border border-gray-100 dark:border-gray-800 group hover:border-emerald-500/30 transition-all duration-500"
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors">{recipe.title}</h3>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{recipe.title}</h3>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
+                    <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest">
                       <Clock size={12} />
                       {recipe.prepTime}
                     </div>
                     <div className={`flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest ${
-                      recipe.matchScore > 80 ? 'bg-emerald-100 text-emerald-700' : 
-                      recipe.matchScore > 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                      recipe.matchScore > 80 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 
+                      recipe.matchScore > 50 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                     }`}>
                       Cocok: {recipe.matchScore}%
                     </div>
@@ -1205,10 +1262,10 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Bahan yang Dimiliki</h4>
+                    <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4">Bahan yang Dimiliki</h4>
                     <div className="flex flex-wrap gap-2">
                       {recipe.ingredients.filter(ing => !recipe.missingIngredients.some(m => ing.toLowerCase().includes(m.toLowerCase()))).map((ing, i) => (
-                        <span key={i} className="text-xs bg-emerald-50 px-4 py-2 rounded-2xl text-emerald-700 font-bold border border-emerald-100 transition-colors">
+                        <span key={i} className="text-xs bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-2xl text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-100 dark:border-emerald-900/20 transition-colors">
                           {ing}
                         </span>
                       ))}
@@ -1217,10 +1274,10 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
 
                   {recipe.missingIngredients.length > 0 && (
                     <div>
-                      <h4 className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-4">Bahan yang Kurang</h4>
+                      <h4 className="text-[10px] font-black text-red-400 dark:text-red-500 uppercase tracking-[0.2em] mb-4">Bahan yang Kurang</h4>
                       <div className="flex flex-wrap gap-2">
                         {recipe.missingIngredients.map((ing, i) => (
-                          <span key={i} className="text-xs bg-red-50 px-4 py-2 rounded-2xl text-red-700 font-bold border border-red-100 transition-colors">
+                          <span key={i} className="text-xs bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-2xl text-red-700 dark:text-red-400 font-bold border border-red-100 dark:border-red-900/20 transition-colors">
                             {ing}
                           </span>
                         ))}
@@ -1230,12 +1287,12 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100 group-hover:bg-emerald-100 transition-colors" />
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">Langkah Memasak</h4>
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100 dark:bg-gray-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/40 transition-colors" />
+                  <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 ml-1">Langkah Memasak</h4>
                   <ol className="space-y-6 relative">
                     {recipe.instructions.map((step, i) => (
-                      <li key={i} className="flex gap-6 text-sm text-gray-600 font-medium leading-relaxed">
-                        <div className="w-8 h-8 flex items-center justify-center bg-white border-2 border-gray-100 text-gray-400 font-black rounded-full flex-shrink-0 group-hover:border-emerald-500 group-hover:text-emerald-600 transition-all z-10">
+                      <li key={i} className="flex gap-6 text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed">
+                        <div className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 font-black rounded-full flex-shrink-0 group-hover:border-emerald-500 group-hover:text-emerald-600 transition-all z-10">
                           {i + 1}
                         </div>
                         <p className="pt-1">{step}</p>
@@ -1261,19 +1318,19 @@ function HistoryView({ history }: { history: UsageHistory[] }) {
       className="space-y-8"
     >
       <div>
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Riwayat Dapur</h2>
-        <p className="text-sm text-gray-400 font-medium">Catatan penggunaan dan pembuangan bahan makanan.</p>
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Riwayat Dapur</h2>
+        <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Catatan penggunaan dan pembuangan bahan makanan.</p>
       </div>
 
       {history.length === 0 ? (
-        <div className="bg-white p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 text-center">
-          <History className="w-20 h-20 text-gray-100 mx-auto mb-6" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Belum Ada Riwayat</h3>
-          <p className="text-gray-400 font-medium">Aktivitas dapur Anda akan muncul di sini.</p>
+        <div className="bg-white dark:bg-gray-900 p-16 rounded-[2.5rem] border-2 border-dashed border-gray-100 dark:border-gray-800 text-center transition-colors">
+          <History className="w-20 h-20 text-gray-100 dark:text-gray-800 mx-auto mb-6" />
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Belum Ada Riwayat</h3>
+          <p className="text-gray-400 dark:text-gray-500 font-medium">Aktivitas dapur Anda akan muncul di sini.</p>
         </div>
       ) : (
         <div className="relative">
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-100" />
+          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-100 dark:bg-gray-800" />
           <div className="space-y-6">
             {history.map((item, idx) => (
               <motion.div 
@@ -1283,23 +1340,23 @@ function HistoryView({ history }: { history: UsageHistory[] }) {
                 key={item.id} 
                 className="relative flex items-center gap-6 group"
               >
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 z-10 shadow-sm border-4 border-white transition-transform group-hover:scale-110 ${
-                  item.action === "consumed" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 z-10 shadow-sm border-4 border-white dark:border-gray-950 transition-transform group-hover:scale-110 ${
+                  item.action === "consumed" ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" : "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
                 }`}>
                   {item.action === "consumed" ? <CheckCircle2 size={24} /> : <Trash2 size={24} />}
                 </div>
-                <div className="flex-1 bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 group-hover:shadow-md transition-all">
+                <div className="flex-1 bg-white dark:bg-gray-900 p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 group-hover:shadow-md transition-all">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-bold text-gray-900">{item.foodName}</h3>
-                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                    <h3 className="font-bold text-gray-900 dark:text-white">{item.foodName}</h3>
+                    <span className="text-[10px] font-black text-gray-300 dark:text-gray-600 uppercase tracking-widest">
                       {item.timestamp ? format(item.timestamp.toDate(), "HH:mm") : "..."}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-400">
+                    <p className="text-xs font-medium text-gray-400 dark:text-gray-500">
                       {item.action === "consumed" ? "Digunakan" : "Dibuang"} • {item.quantity} {item.unit}
                     </p>
-                    <p className="text-[10px] font-bold text-gray-400">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
                       {item.timestamp ? format(item.timestamp.toDate(), "dd MMMM yyyy") : "..."}
                     </p>
                   </div>
@@ -1374,28 +1431,28 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
       className="max-w-xl mx-auto"
     >
       <div className="mb-8">
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Pengaturan Profil</h2>
-        <p className="text-sm text-gray-400 font-medium">Kelola informasi akun Anda di sini.</p>
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Pengaturan Profil</h2>
+        <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Kelola informasi akun Anda di sini.</p>
       </div>
 
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+      <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 transition-colors">
         <form onSubmit={handleUpdateProfile} className="space-y-8">
           <div className="flex flex-col items-center gap-6 mb-4">
             <div className="relative group">
-              <div className="w-32 h-32 rounded-[2.5rem] bg-emerald-50 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
+              <div className="w-32 h-32 rounded-[2.5rem] bg-emerald-50 dark:bg-emerald-900/20 border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden flex items-center justify-center">
                 {photoURL ? (
                   <img src={photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
-                  <UserIcon size={48} className="text-emerald-200" />
+                  <UserIcon size={48} className="text-emerald-200 dark:text-emerald-800" />
                 )}
               </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg border-4 border-white">
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg border-4 border-white dark:border-gray-800">
                 <Camera size={18} />
               </div>
             </div>
             <div className="text-center">
-              <h3 className="font-bold text-gray-900">{user.email}</h3>
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">ID Pengguna: {user.uid.slice(0, 8)}...</p>
+              <h3 className="font-bold text-gray-900 dark:text-white">{user.email}</h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-widest mt-1">ID Pengguna: {user.uid.slice(0, 8)}...</p>
             </div>
           </div>
 
@@ -1404,7 +1461,7 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`p-4 rounded-2xl text-sm font-bold flex items-center gap-3 ${
-                message.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+                message.type === "success" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40"
               }`}
             >
               {message.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
@@ -1414,68 +1471,68 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
 
           <div className="space-y-6">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Nama Tampilan</label>
+              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Nama Tampilan</label>
               <input 
                 required
                 type="text" 
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 placeholder="Nama Anda"
-                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
               />
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Nama Lengkap</label>
+              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Nama Lengkap</label>
               <input 
                 type="text" 
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
                 placeholder="Nama Lengkap Anda"
-                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Umur</label>
+                <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Umur</label>
                 <input 
                   type="number" 
                   value={age}
                   onChange={e => setAge(e.target.value)}
                   placeholder="0"
-                  className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 no-spinner"
+                  className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white no-spinner placeholder:text-gray-300 dark:placeholder:text-gray-600"
                 />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Asal</label>
+                <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">Asal</label>
                 <input 
                   type="text" 
                   value={origin}
                   onChange={e => setOrigin(e.target.value)}
                   placeholder="Kota Asal"
-                  className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                  className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">URL Foto Profil</label>
+              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-1">URL Foto Profil</label>
               <input 
                 type="url" 
                 value={photoURL}
                 onChange={e => setPhotoURL(e.target.value)}
                 placeholder="https://contoh.com/foto.jpg"
-                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900"
+                className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
               />
-              <p className="text-[10px] text-gray-400 font-medium ml-1">Gunakan URL gambar publik untuk memperbarui foto profil Anda.</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium ml-1">Gunakan URL gambar publik untuk memperbarui foto profil Anda.</p>
             </div>
           </div>
 
           <button 
             disabled={isUpdating}
             type="submit"
-            className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center gap-3"
           >
             {isUpdating ? (
               <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />

@@ -1,8 +1,47 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Aggressive WebSocket suppression and Theme Initialization
+      (function() {
+        // 1. Suppress Vite/WebSocket errors
+        const suppress = (msg) => {
+          if (typeof msg !== 'string') return false;
+          const patterns = ['[vite]', 'WebSocket', 'connecting...', 'failed to connect', 'closed without opened'];
+          return patterns.some(p => msg.includes(p));
+        };
+        const wrap = (obj, prop) => {
+          const original = obj[prop];
+          obj[prop] = (...args) => {
+            if (args[0] && suppress(args[0])) return;
+            original.apply(obj, args);
+          };
+        };
+        ['error', 'warn', 'log', 'debug', 'info'].forEach(m => wrap(console, m));
+        window.addEventListener('unhandledrejection', (e) => {
+          if (e.reason && (suppress(e.reason.message) || suppress(e.reason))) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+
+        // 2. Initialize theme
+        try {
+          const theme = localStorage.getItem('theme');
+          const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.body.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>DapurPintar</title>
   </head>
   <body>
