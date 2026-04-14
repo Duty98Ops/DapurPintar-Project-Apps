@@ -9,15 +9,17 @@ const RETENTION_DAYS = 30; // Data older than this will be deleted
 const BATCH_SIZE = 500;
 
 async function cleanup() {
-  console.log('--- Starting Firestore Cleanup (v1.2) ---');
+  console.log('********************************');
+  console.log('*** FIRESTORE CLEANUP V1.3 ***');
+  console.log('********************************');
   
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   const dbIdEnv = process.env.FIRESTORE_DATABASE_ID;
   
-  console.log(`Environment FIRESTORE_DATABASE_ID: "${dbIdEnv}"`);
+  console.log(`DEBUG: Raw Database ID from Env: "${dbIdEnv}"`);
   
   if (!serviceAccountJson) {
-    console.error('Error: FIREBASE_SERVICE_ACCOUNT_KEY is missing.');
+    console.error('!!! ERROR: FIREBASE_SERVICE_ACCOUNT_KEY IS MISSING !!!');
     process.exit(1);
   }
 
@@ -26,11 +28,11 @@ async function cleanup() {
     const databaseId = (dbIdEnv || '(default)').trim();
     const projectId = serviceAccount.project_id;
 
-    console.log(`Service Account Project ID: "${projectId}"`);
-    console.log(`Target Database ID: "${databaseId}"`);
+    console.log(`DEBUG: Service Account Project: "${projectId}"`);
+    console.log(`DEBUG: Using Database ID: "${databaseId}"`);
     
     if (getApps().length === 0) {
-      console.log('Initializing Firebase Admin...');
+      console.log('DEBUG: Initializing Firebase Admin...');
       initializeApp({
         credential: cert(serviceAccount),
         projectId: projectId
@@ -38,6 +40,7 @@ async function cleanup() {
     }
 
     const db = getFirestore(databaseId);
+    console.log('DEBUG: Firestore instance initialized.');
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
     const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
