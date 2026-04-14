@@ -32,7 +32,9 @@ import {
   User as UserIcon,
   Camera,
   Moon,
-  Sun
+  Sun,
+  Leaf,
+  Zap
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe } from "./services/geminiService";
@@ -377,267 +379,297 @@ export default function App() {
   if (!user) {
     return (
       <div key={isDarkMode ? 'dark-landing' : 'light-landing'} className={isDarkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col lg:flex-row overflow-hidden transition-colors duration-300">
-        {/* Left Side - Visual Branding */}
-        <div className="hidden lg:flex lg:w-1/2 bg-emerald-600 relative items-center justify-center p-12 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15)_0%,transparent_50%)]" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500 rounded-full blur-3xl opacity-50" />
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-700 rounded-full blur-3xl opacity-50" />
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 text-white max-w-lg"
-          >
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/30">
-              <Utensils className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-7xl font-extrabold mb-6 leading-[0.9] tracking-tighter">
-              Dapur<br/><span className="text-emerald-200">Pintar.</span>
-            </h1>
-            <p className="text-xl text-emerald-50/80 font-medium leading-relaxed">
-              Solusi cerdas manajemen stok makanan rumah tangga. Kurangi limbah, hemat biaya, dan temukan resep lezat setiap hari.
-            </p>
-            
-            <div className="mt-12 flex gap-8">
-              <div className="space-y-1">
-                <div className="text-3xl font-bold">100%</div>
-                <div className="text-sm text-emerald-100/60 uppercase tracking-widest font-bold">Cerdas</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-bold">0%</div>
-                <div className="text-sm text-emerald-100/60 uppercase tracking-widest font-bold">Limbah</div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Right Side - Login Form */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-24 bg-white dark:bg-gray-950 transition-colors relative">
-          {/* Theme Toggle for Landing Page */}
-          <div className="absolute top-8 right-8 z-50">
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-105 transition-all"
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+        <div className="min-h-screen bg-[#0a0f12] dark:bg-[#0a0f12] flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden transition-colors duration-300 relative">
+          {/* Background Decorative Elements */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px]" />
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md"
-          >
-            <div className="lg:hidden flex items-center gap-3 mb-12">
-              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                <Utensils className="w-6 h-6 text-white" />
+          {/* Left Side - Content & Branding */}
+          <div className="w-full lg:w-1/2 flex flex-col justify-center p-6 sm:p-12 lg:p-24 relative z-10">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="max-w-xl mx-auto lg:mx-0"
+            >
+              <div className="flex items-center gap-2 mb-8 lg:mb-12">
+                <span className="text-emerald-500 font-bold tracking-tight text-xl">Dapur Pintar</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">DapurPintar</h1>
-            </div>
 
-            <div className="mb-10">
-              <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">
-                {authMode === "google" 
-                  ? "Selamat Datang" 
-                  : (showForgotPassword 
-                      ? "Lupa Kata Sandi?" 
-                      : (isSignUp ? "Buat Akun" : "Masuk Kembali"))}
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400 font-medium">
-                {authMode === "google" 
-                  ? "Masuk untuk mulai mengelola dapur Anda dengan lebih baik." 
-                  : (showForgotPassword 
-                      ? "Masukkan email Anda untuk menerima tautan reset." 
-                      : (isSignUp ? "Lengkapi detail di bawah untuk mendaftar." : "Masukkan email dan kata sandi Anda."))}
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white mb-6 lg:mb-8 leading-[1.1] tracking-tight">
+                Kelola dapur jadi lebih cerdas dengan <span className="text-emerald-400">AI</span>
+              </h1>
+              
+              <p className="text-base sm:text-lg lg:text-xl text-gray-400 font-medium leading-relaxed mb-8 lg:mb-12">
+                Optimalkan inventaris makanan, kurangi limbah, dan temukan resep berbasis AI yang dirancang khusus untuk kesehatan dan gaya hidup Anda.
               </p>
+
+              {/* Feature Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 lg:mb-12">
+                <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:bg-[#121a1e] transition-all">
+                  <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Leaf className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-white mb-1">95%</div>
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Food Waste Reduction</div>
+                </div>
+                <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:bg-[#121a1e] transition-all">
+                  <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Zap className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-white mb-1">Smart</div>
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Efficiency</div>
+                </div>
+              </div>
+
+              {/* AI Recipe Card */}
+              <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-between mb-8 lg:mb-12 group hover:bg-[#121a1e] transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 sm:w-12 h-12 bg-emerald-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                    <ChefHat className="w-5 h-5 sm:w-6 h-6 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white">AI-Powered Recipes</h3>
+                    <p className="text-[10px] sm:text-xs text-gray-500">Personalized meal plans generated daily</p>
+                  </div>
+                </div>
+                <div className="px-2 sm:px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  <span className="text-[8px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live AI</span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Right Side - Login Form */}
+          <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-24 relative z-10">
+            {/* Theme Toggle */}
+            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
+              <button 
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="w-10 h-10 sm:w-12 h-12 flex items-center justify-center bg-white/5 backdrop-blur-md text-white rounded-xl sm:rounded-2xl border border-white/10 hover:bg-white/10 transition-all"
+              >
+                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
             </div>
 
-            {loginError && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-2xl border border-red-100 dark:border-red-900/40 flex items-center gap-3"
-              >
-                <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <span className="font-medium">{loginError}</span>
-              </motion.div>
-            )}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md bg-[#121a1e] p-6 sm:p-10 lg:p-12 rounded-[2rem] sm:rounded-[3rem] border border-white/5 shadow-2xl mb-32 lg:mb-0"
+            >
+              <div className="mb-6 sm:mb-10">
+                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
+                  {authMode === "google" 
+                    ? "Selamat Datang Kembali" 
+                    : (showForgotPassword 
+                        ? "Lupa Kata Sandi?" 
+                        : (isSignUp ? "Daftar Sekarang" : "Masuk ke Dashboard"))}
+                </h2>
+                <p className="text-gray-500 font-medium">
+                  {authMode === "google" 
+                    ? "Lanjutkan perjalanan dapur pintar Anda." 
+                    : (showForgotPassword 
+                        ? "Masukkan email Anda untuk menerima tautan reset." 
+                        : (isSignUp ? "Lengkapi detail di bawah untuk mendaftar." : "Lanjutkan perjalanan dapur pintar Anda.")) }
+                </p>
+              </div>
 
-            <AnimatePresence mode="wait">
-              {authMode === "google" ? (
-                <motion.div
-                  key="google-mode"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
+              {loginError && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-8 p-4 bg-red-500/10 text-red-400 text-sm rounded-2xl border border-red-500/20 flex items-center gap-3"
                 >
-                  <button 
-                    disabled={isAuthSubmitting}
-                    onClick={handleLogin}
-                    className="w-full flex items-center justify-center gap-4 py-5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 rounded-2xl font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all border-2 border-gray-100 dark:border-gray-800 shadow-sm group disabled:opacity-50"
-                  >
-                    {isAuthSubmitting ? (
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full" />
-                    ) : (
-                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-                    )}
-                    <span>{isAuthSubmitting ? "Memproses..." : "Lanjutkan dengan Google"}</span>
-                    {!isAuthSubmitting && <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:translate-x-1 transition-transform" />}
-                  </button>
-
-                  <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800"></div></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-gray-50 dark:bg-gray-950 px-4 text-gray-400 dark:text-gray-600 font-bold tracking-widest transition-colors">Atau</span></div>
-                  </div>
-
-                  <button 
-                    onClick={() => setAuthMode("email")}
-                    className="w-full py-5 bg-gray-900 dark:bg-emerald-600 text-white rounded-2xl font-bold hover:bg-gray-800 dark:hover:bg-emerald-700 transition-all shadow-lg shadow-gray-200 dark:shadow-none"
-                  >
-                    Gunakan Email & Password
-                  </button>
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-medium">{loginError}</span>
                 </motion.div>
-              ) : (
-                <motion.form
-                  key="email-mode"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  onSubmit={handleEmailAuth}
-                  className="space-y-4"
-                >
-                  {resetSent ? (
-                    <div className="p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-center space-y-4">
-                      <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto">
-                        <CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <h3 className="font-bold text-emerald-900 dark:text-emerald-400">Email Terkirim!</h3>
-                      <p className="text-sm text-emerald-700 dark:text-emerald-300">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setShowForgotPassword(false);
-                          setResetSent(false);
-                        }}
-                        className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                      >
-                        Kembali ke Login
-                      </button>
+              )}
+
+              <AnimatePresence mode="wait">
+                {authMode === "google" ? (
+                  <motion.div
+                    key="google-mode"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6"
+                  >
+                    <button 
+                      disabled={isAuthSubmitting}
+                      onClick={handleLogin}
+                      className="w-full flex items-center justify-center gap-3 sm:gap-4 py-4 sm:py-5 bg-white/5 hover:bg-white/10 text-white rounded-xl sm:rounded-2xl font-bold transition-all border border-white/10 shadow-sm group disabled:opacity-50"
+                    >
+                      {isAuthSubmitting ? (
+                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 sm:w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                      ) : (
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 sm:w-6 h-6" alt="Google" />
+                      )}
+                      <span className="text-sm sm:text-base">{isAuthSubmitting ? "Memproses..." : "Continue with Google"}</span>
+                    </button>
+
+                    <div className="relative py-4">
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+                      <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-[#121a1e] px-4 text-gray-500 font-black tracking-[0.2em]">Atau gunakan email</span></div>
                     </div>
-                  ) : (
-                    <>
-                      {isSignUp && !showForgotPassword && (
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
-                          <input 
-                            required
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
-                            placeholder="Nama Anda"
-                          />
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Email</label>
-                        <input 
-                          required
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
-                          placeholder="email@contoh.com"
-                        />
-                      </div>
-                      {!showForgotPassword && (
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center ml-1">
-                            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Kata Sandi</label>
-                            {!isSignUp && (
-                              <button 
-                                type="button"
-                                onClick={() => setShowForgotPassword(true)}
-                                className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 uppercase tracking-widest"
-                              >
-                                Lupa?
-                              </button>
-                            )}
-                          </div>
-                          <input 
-                            required
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
-                            placeholder="••••••••"
-                          />
-                        </div>
-                      )}
 
-                      <button 
-                        disabled={isAuthSubmitting}
-                        type="submit"
-                        className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50 flex items-center justify-center gap-3"
-                      >
-                        {isAuthSubmitting ? (
-                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-                        ) : (
-                          <span>
-                            {showForgotPassword 
-                              ? "Kirim Tautan Reset" 
-                              : (isSignUp ? "Daftar Sekarang" : "Masuk")}
-                          </span>
-                        )}
-                      </button>
+                    <button 
+                      onClick={() => setAuthMode("email")}
+                      className="w-full py-4 sm:py-5 bg-emerald-500 text-white rounded-xl sm:rounded-2xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 text-sm sm:text-base"
+                    >
+                      Masuk ke Dashboard
+                    </button>
 
-                      <div className="flex flex-col gap-3 pt-4">
-                        {!showForgotPassword ? (
-                          <button 
-                            type="button"
-                            onClick={() => setIsSignUp(!isSignUp)}
-                            className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                          >
-                            {isSignUp ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar"}
-                          </button>
-                        ) : (
-                          <button 
-                            type="button"
-                            onClick={() => setShowForgotPassword(false)}
-                            className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                          >
-                            Kembali ke Login
-                          </button>
-                        )}
+                    <div className="text-center">
+                      <p className="text-sm text-gray-500 font-medium">
+                        Belum punya akun? <button onClick={() => { setAuthMode("email"); setIsSignUp(true); }} className="text-emerald-400 font-bold hover:underline">Daftar sekarang</button>
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.form
+                    key="email-mode"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    onSubmit={handleEmailAuth}
+                    className="space-y-6"
+                  >
+                    {resetSent ? (
+                      <div className="p-8 bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] text-center space-y-4">
+                        <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                          <CheckCircle2 className="text-emerald-400 w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white">Email Terkirim!</h3>
+                        <p className="text-sm text-gray-400">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
                         <button 
                           type="button"
                           onClick={() => {
-                            setAuthMode("google");
-                            setLoginError(null);
                             setShowForgotPassword(false);
+                            setResetSent(false);
                           }}
-                          className="text-sm font-bold text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+                          className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all"
                         >
-                          Kembali ke Pilihan Lain
+                          Kembali ke Login
                         </button>
                       </div>
-                    </>
-                  )}
-                </motion.form>
-              )}
-            </AnimatePresence>
+                    ) : (
+                      <>
+                        {isSignUp && !showForgotPassword && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                            <input 
+                              required
+                              type="text"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                              placeholder="Nama Anda"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Email</label>
+                          <input 
+                            required
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                            placeholder="nama@email.com"
+                          />
+                        </div>
+                        {!showForgotPassword && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center ml-1">
+                              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Password</label>
+                              {!isSignUp && (
+                                <button 
+                                  type="button"
+                                  onClick={() => setShowForgotPassword(true)}
+                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest"
+                                >
+                                  Lupa password?
+                                </button>
+                              )}
+                            </div>
+                            <input 
+                              required
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                              placeholder="••••••••"
+                            />
+                          </div>
+                        )}
 
-            <p className="mt-12 text-center text-sm text-gray-400 font-medium">
-              Dengan masuk, Anda menyetujui Ketentuan Layanan dan Kebijakan Privasi kami.
-            </p>
-          </motion.div>
+                        <button 
+                          disabled={isAuthSubmitting}
+                          type="submit"
+                          className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                        >
+                          {isAuthSubmitting ? (
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                          ) : (
+                            <span>
+                              {showForgotPassword 
+                                ? "Kirim Tautan Reset" 
+                                : (isSignUp ? "Daftar Sekarang" : "Masuk ke Dashboard")}
+                            </span>
+                          )}
+                        </button>
+
+                        <div className="flex flex-col gap-4 pt-4 text-center">
+                          {!showForgotPassword ? (
+                            <p className="text-sm text-gray-500 font-medium">
+                              {isSignUp ? "Sudah punya akun?" : "Belum punya akun?"} <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-emerald-400 font-bold hover:underline">{isSignUp ? "Masuk sekarang" : "Daftar sekarang"}</button>
+                            </p>
+                          ) : (
+                            <button 
+                              type="button"
+                              onClick={() => setShowForgotPassword(false)}
+                              className="text-sm font-bold text-emerald-400 hover:underline"
+                            >
+                              Kembali ke Login
+                            </button>
+                          )}
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setAuthMode("google");
+                              setLoginError(null);
+                              setShowForgotPassword(false);
+                            }}
+                            className="text-xs font-bold text-gray-600 hover:text-gray-400 transition-colors uppercase tracking-widest"
+                          >
+                            Kembali ke Pilihan Lain
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </motion.form>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+
+          {/* Footer */}
+          <footer className="lg:absolute lg:bottom-0 lg:left-0 w-full p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 z-20 bg-[#0a0f12]/80 backdrop-blur-sm lg:bg-transparent">
+            <div className="text-white font-bold text-lg">Dapur Pintar</div>
+            <div className="text-[9px] sm:text-[10px] text-gray-600 font-medium uppercase tracking-widest text-center max-w-[250px] sm:max-w-none">
+              © 2025 DAPUR PINTAR AI. ENGINEERED FOR THE ETHEREAL ENGINE.
+            </div>
+            <div className="flex items-center gap-4 sm:gap-6">
+              {['PRIVACY POLICY', 'TERMS', 'CONTACT'].map(link => (
+                <button key={link} className="text-[9px] sm:text-[10px] text-gray-600 font-bold hover:text-gray-400 transition-colors uppercase tracking-widest">
+                  {link}
+                </button>
+              ))}
+            </div>
+          </footer>
         </div>
       </div>
-    </div>
     );
   }
 
