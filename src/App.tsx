@@ -786,6 +786,14 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
 }
 
 function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[], setActiveTab: (tab: any) => void, onEdit: (item: FoodItem) => void }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+
+  const filteredItems = foodItems.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const expiringSoon = foodItems.filter(item => {
     const date = item.expiryDate?.toDate();
     if (!date) return false;
@@ -911,16 +919,52 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
 
       {/* Main Inventory */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Inventaris Dapur</h2>
-            <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Kelola semua stok makanan Anda di sini.</p>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Inventaris Dapur</h2>
+              <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Kelola semua stok makanan Anda di sini.</p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowSearch(!showSearch)}
+                className={`p-3 rounded-2xl transition-all shadow-sm border ${showSearch ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-gray-900 text-gray-400 border-gray-100 dark:border-gray-800 hover:text-emerald-600'}`}
+              >
+                <Search size={20} />
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button className="p-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-gray-400 hover:text-emerald-600 transition-colors shadow-sm">
-              <Search size={20} />
-            </button>
-          </div>
+
+          <AnimatePresence>
+            {showSearch && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Cari nama makanan atau kategori..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600"
+                    >
+                      Hapus
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {foodItems.length === 0 ? (
@@ -937,9 +981,15 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
               Tambah Sekarang
             </button>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="bg-white dark:bg-gray-900 p-12 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 text-center transition-colors">
+            <Search className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Tidak Ditemukan</h3>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Hasil pencarian untuk "{searchQuery}" tidak ada.</p>
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {foodItems.map((item, idx) => (
+            {filteredItems.map((item, idx) => (
               <motion.div 
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
