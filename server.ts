@@ -18,6 +18,11 @@ async function startServer() {
 
   // Gemini AI Setup (Server-side)
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+  
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+    console.warn("WARNING: GEMINI_API_KEY is empty or using placeholder value!");
+  }
+
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   // API Route for Recipes
@@ -29,8 +34,11 @@ async function startServer() {
         return res.status(400).json({ error: "Invalid ingredients list" });
       }
 
-      if (!GEMINI_API_KEY) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server" });
+      if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+        return res.status(500).json({ 
+          error: "Konfigurasi Server Error", 
+          details: "Kunci API Gemini belum dipasang di server. Silakan cek Environment Variables." 
+        });
       }
 
       const ingredientList = ingredients.map((i: any) => `${i.name} (${i.category})`).join(", ");
