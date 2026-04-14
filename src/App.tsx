@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { auth, db } from "./firebase";
 import { 
   onAuthStateChanged, 
@@ -675,10 +675,14 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setActiveTab("profile")}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeTab === "profile" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-gray-800"}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all overflow-hidden ${activeTab === "profile" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 ring-2 ring-emerald-500" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-gray-800"}`}
                 title="Edit Profil"
               >
-                <UserIcon className="w-5 h-5" />
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <UserIcon className="w-5 h-5" />
+                )}
               </button>
               <button 
                 onClick={handleLogout}
@@ -1427,7 +1431,10 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
   const [origin, setOrigin] = useState(userProfile?.origin || "");
   const [photoURL, setPhotoURL] = useState(user.photoURL || "");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (userProfile) {
@@ -1436,6 +1443,56 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
       setOrigin(userProfile.origin || "");
     }
   }, [userProfile]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: "error", text: "File harus berupa gambar." });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Ukuran gambar maksimal 5MB." });
+      return;
+    }
+
+    setIsUploading(true);
+    setMessage(null);
+
+    const cloudName = (import.meta as any).env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = (import.meta as any).env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      setMessage({ type: "error", text: "Konfigurasi Cloudinary belum lengkap di .env" });
+      setIsUploading(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+      const data = await response.json();
+      if (data.secure_url) {
+        setPhotoURL(data.secure_url);
+        setMessage({ type: "success", text: "Gambar berhasil diunggah! Jangan lupa klik Simpan Perubahan." });
+      } else {
+        throw new Error(data.error?.message || "Gagal mengunggah gambar.");
+      }
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      setMessage({ type: "error", text: error.message || "Terjadi kesalahan saat mengunggah." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1490,15 +1547,29 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
           <div className="flex flex-col items-center gap-6 mb-4">
             <div className="relative group">
               <div className="w-32 h-32 rounded-[2.5rem] bg-emerald-50 dark:bg-emerald-900/20 border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden flex items-center justify-center">
-                {photoURL ? (
+                {isUploading ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+                ) : photoURL ? (
                   <img src={photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <UserIcon size={48} className="text-emerald-200 dark:text-emerald-800" />
                 )}
               </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg border-4 border-white dark:border-gray-800">
+              <button 
+                type="button"
+                disabled={isUploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg border-4 border-white dark:border-gray-800 hover:scale-110 transition-all disabled:opacity-50"
+              >
                 <Camera size={18} />
-              </div>
+              </button>
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleImageUpload}
+              />
             </div>
             <div className="text-center">
               <h3 className="font-bold text-gray-900 dark:text-white">{user.email}</h3>
