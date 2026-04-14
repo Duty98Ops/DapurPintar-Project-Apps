@@ -9,32 +9,31 @@ const RETENTION_DAYS = 30; // Data older than this will be deleted
 const BATCH_SIZE = 500;
 
 async function cleanup() {
-  console.log('--- Starting Firestore Cleanup ---');
+  console.log('--- Starting Firestore Cleanup (v1.2) ---');
   
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const dbIdEnv = process.env.FIRESTORE_DATABASE_ID;
+  
+  console.log(`Environment FIRESTORE_DATABASE_ID: "${dbIdEnv}"`);
   
   if (!serviceAccountJson) {
-    console.error('Error: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    console.error('Error: FIREBASE_SERVICE_ACCOUNT_KEY is missing.');
     process.exit(1);
   }
 
   try {
     const serviceAccount = JSON.parse(serviceAccountJson);
-    const databaseId = (process.env.FIRESTORE_DATABASE_ID || '(default)').trim();
+    const databaseId = (dbIdEnv || '(default)').trim();
     const projectId = serviceAccount.project_id;
-    const expectedProjectId = "gen-lang-client-0600647085";
 
-    console.log(`Project ID: ${projectId} (length: ${projectId.length})`);
-    console.log(`Database ID: ${databaseId} (length: ${databaseId.length})`);
-
-    if (projectId !== expectedProjectId) {
-      console.warn(`Warning: Project ID mismatch! Expected ${expectedProjectId}, but got ${projectId}. This might cause NOT_FOUND errors.`);
-    }
+    console.log(`Service Account Project ID: "${projectId}"`);
+    console.log(`Target Database ID: "${databaseId}"`);
     
     if (getApps().length === 0) {
+      console.log('Initializing Firebase Admin...');
       initializeApp({
         credential: cert(serviceAccount),
-        projectId: projectId // Explicitly set project ID
+        projectId: projectId
       });
     }
 
@@ -43,9 +42,23 @@ async function cleanup() {
     const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
     const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-    console.log(`Deleting records in 'usageHistory' older than: ${cutoffDate.toISOString()}`);
+    console.log(`Cutoff Date: ${cutoffDate.toISOString()}`);
+    console.log(`Checking collection: "usageHistory"`);
 
     const collectionRef = db.collection('usageHistory');
+    
+    // Test connection with a simple limit(1) get
+    console.log('Testing connection to Firestore...');
+    try {
+      await collectionRef.limit(1).get();
+      console.log('Connection successful.');
+    } catch (connError: any) {
+      console.error('Connection test failed!');
+      console.error(`Error Code: ${connError.code}`);
+      console.error(`Error Message: ${connError.message}`);
+      throw connError;
+    }
+
     const query = collectionRef.where('timestamp', '<', cutoffTimestamp).limit(BATCH_SIZE);
 
     let deletedCount = 0;
