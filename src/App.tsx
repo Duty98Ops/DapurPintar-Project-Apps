@@ -744,9 +744,10 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
 
   const handleAction = async (item: FoodItem, action: "consumed" | "discarded") => {
     try {
-      await updateDoc(doc(db, "foodItems", item.id), { status: action });
+      // Delete from active inventory instead of just updating status
+      await deleteDoc(doc(db, "foodItems", item.id));
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `foodItems/${item.id}`);
+      handleFirestoreError(e, OperationType.DELETE, `foodItems/${item.id}`);
     }
 
     try {

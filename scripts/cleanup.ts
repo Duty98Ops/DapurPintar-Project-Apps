@@ -5,12 +5,12 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 // Configuration
-const RETENTION_MINUTES = 5; // Data older than this will be deleted (TEMPORARY FOR TESTING)
+const RETENTION_DAYS = 30; // Data older than this will be deleted
 const BATCH_SIZE = 500;
 
 async function cleanup() {
   console.log('=========================================');
-  console.log('   FIRESTORE CLEANUP SCRIPT V1.4 (TEST)');
+  console.log('   FIRESTORE CLEANUP SCRIPT V1.4');
   console.log('=========================================');
   
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -40,8 +40,12 @@ async function cleanup() {
     // Use the specific database ID or default
     const db = databaseId ? getFirestore(databaseId) : getFirestore();
     
+    const now = new Date();
+    const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
+    const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
+
     console.log(`- Target Collection: usageHistory`);
-    console.log(`- Mode: DELETE ALL RECORDS (TEMPORARY FOR TESTING)`);
+    console.log(`- Cutoff Date: ${cutoffDate.toISOString()}`);
 
     const collectionRef = db.collection('usageHistory');
     
@@ -56,20 +60,19 @@ async function cleanup() {
       throw connError;
     }
 
-    // Query all records without date filter
-    const query = collectionRef.limit(BATCH_SIZE);
+    const query = collectionRef.where('timestamp', '<', cutoffTimestamp).limit(BATCH_SIZE);
 
     let deletedCount = 0;
 
-    async function deleteBatch() {
-      const snapshot = await query.get();
+    async function deleteBatch(q: any) {
+      const snapshot = await q.get();
       
       if (snapshot.empty) {
         return 0;
       }
 
       const batch = db.batch();
-      snapshot.docs.forEach((doc) => {
+      snapshot.docs.forEach((doc: any) => {
         batch.delete(doc.ref);
       });
 
@@ -77,16 +80,36 @@ async function cleanup() {
       return snapshot.size;
     }
 
+    // Cleanup usageHistory
     let count;
     do {
-      count = await deleteBatch();
+      count = await deleteBatch(query);
       deletedCount += count;
       if (count > 0) {
-        console.log(`Deleted ${count} records... (Total: ${deletedCount})`);
+        console.log(`Deleted ${count} usageHistory records... (Total: ${deletedCount})`);
       }
     } while (count === BATCH_SIZE);
 
-    console.log(`--- Cleanup Finished. Total records deleted: ${deletedCount} ---`);
+    // Cleanup old foodItems that are not 'available' (legacy cleanup)
+    console.log(`Checking for old consumed/discarded foodItems...`);
+    const foodItemsRef = db.collection('foodItems');
+    const oldFoodQuery = foodItemsRef
+      .where('status', 'in', ['consumed', 'discarded'])
+      .where('updatedAt', '<', cutoffTimestamp)
+      .limit(BATCH_SIZE);
+
+    let foodDeletedCount = 0;
+    do {
+      count = await deleteBatch(oldFoodQuery);
+      foodDeletedCount += count;
+      if (count > 0) {
+        console.log(`Deleted ${count} old foodItems... (Total: ${foodDeletedCount})`);
+      }
+    } while (count === BATCH_SIZE);
+
+    console.log(`--- Cleanup Finished ---`);
+    console.log(`Total usageHistory deleted: ${deletedCount}`);
+    console.log(`Total old foodItems deleted: ${foodDeletedCount}`);
     process.exit(0);
   } catch (error) {
     console.error('Cleanup failed:', error);
