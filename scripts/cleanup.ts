@@ -9,56 +9,54 @@ const RETENTION_DAYS = 30; // Data older than this will be deleted
 const BATCH_SIZE = 500;
 
 async function cleanup() {
-  console.log('********************************');
-  console.log('*** FIRESTORE CLEANUP V1.3 ***');
-  console.log('********************************');
+  console.log('=========================================');
+  console.log('   FIRESTORE CLEANUP SCRIPT V1.4');
+  console.log('=========================================');
   
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   const dbIdEnv = process.env.FIRESTORE_DATABASE_ID;
   
-  console.log(`DEBUG: Raw Database ID from Env: "${dbIdEnv}"`);
-  
   if (!serviceAccountJson) {
-    console.error('!!! ERROR: FIREBASE_SERVICE_ACCOUNT_KEY IS MISSING !!!');
+    console.error('FATAL ERROR: FIREBASE_SERVICE_ACCOUNT_KEY is missing!');
     process.exit(1);
   }
 
   try {
     const serviceAccount = JSON.parse(serviceAccountJson);
-    const databaseId = (dbIdEnv || '(default)').trim();
+    const databaseId = (dbIdEnv || '').trim();
     const projectId = serviceAccount.project_id;
 
-    console.log(`DEBUG: Service Account Project: "${projectId}"`);
-    console.log(`DEBUG: Using Database ID: "${databaseId}"`);
+    console.log(`- Project ID: ${projectId}`);
+    console.log(`- Database ID: ${databaseId || '(default)'}`);
     
     if (getApps().length === 0) {
-      console.log('DEBUG: Initializing Firebase Admin...');
       initializeApp({
         credential: cert(serviceAccount),
         projectId: projectId
       });
+      console.log('- Firebase Admin Initialized.');
     }
 
-    const db = getFirestore(databaseId);
-    console.log('DEBUG: Firestore instance initialized.');
+    // Use the specific database ID or default
+    const db = databaseId ? getFirestore(databaseId) : getFirestore();
+    
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
     const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
-    console.log(`Cutoff Date: ${cutoffDate.toISOString()}`);
-    console.log(`Checking collection: "usageHistory"`);
+    console.log(`- Target Collection: usageHistory`);
+    console.log(`- Cutoff Date: ${cutoffDate.toISOString()}`);
 
     const collectionRef = db.collection('usageHistory');
     
-    // Test connection with a simple limit(1) get
-    console.log('Testing connection to Firestore...');
+    console.log('- Testing connection...');
     try {
-      await collectionRef.limit(1).get();
-      console.log('Connection successful.');
+      const testSnapshot = await collectionRef.limit(1).get();
+      console.log(`- Connection OK. Found ${testSnapshot.size} sample records.`);
     } catch (connError: any) {
-      console.error('Connection test failed!');
-      console.error(`Error Code: ${connError.code}`);
-      console.error(`Error Message: ${connError.message}`);
+      console.error('!!! Connection test failed !!!');
+      console.error(`Code: ${connError.code}`);
+      console.error(`Message: ${connError.message}`);
       throw connError;
     }
 
