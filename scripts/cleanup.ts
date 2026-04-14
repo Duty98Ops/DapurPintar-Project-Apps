@@ -40,12 +40,8 @@ async function cleanup() {
     // Use the specific database ID or default
     const db = databaseId ? getFirestore(databaseId) : getFirestore();
     
-    const now = new Date();
-    const cutoffDate = new Date(now.getTime() - (RETENTION_MINUTES * 60 * 1000));
-    const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
-
     console.log(`- Target Collection: usageHistory`);
-    console.log(`- Cutoff Date: ${cutoffDate.toISOString()}`);
+    console.log(`- Mode: DELETE ALL RECORDS (TEMPORARY FOR TESTING)`);
 
     const collectionRef = db.collection('usageHistory');
     
@@ -60,7 +56,8 @@ async function cleanup() {
       throw connError;
     }
 
-    const query = collectionRef.where('timestamp', '<', cutoffTimestamp).limit(BATCH_SIZE);
+    // Query all records without date filter
+    const query = collectionRef.limit(BATCH_SIZE);
 
     let deletedCount = 0;
 
