@@ -22,9 +22,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Debug - Print script content
-        run: cat scripts/cleanup.ts
-
       - name: Run cleanup script
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}

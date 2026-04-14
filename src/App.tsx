@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-// Force sync v1.4
 import { auth, db } from "./firebase";
 import { 
   onAuthStateChanged, 

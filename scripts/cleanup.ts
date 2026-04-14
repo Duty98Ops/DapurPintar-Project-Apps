@@ -5,12 +5,12 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 // Configuration
-const RETENTION_DAYS = 30; // Data older than this will be deleted
+const RETENTION_MINUTES = 5; // Data older than this will be deleted (TEMPORARY FOR TESTING)
 const BATCH_SIZE = 500;
 
 async function cleanup() {
   console.log('=========================================');
-  console.log('   FIRESTORE CLEANUP SCRIPT V1.4');
+  console.log('   FIRESTORE CLEANUP SCRIPT V1.4 (TEST)');
   console.log('=========================================');
   
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -41,7 +41,7 @@ async function cleanup() {
     const db = databaseId ? getFirestore(databaseId) : getFirestore();
     
     const now = new Date();
-    const cutoffDate = new Date(now.getTime() - (RETENTION_DAYS * 24 * 60 * 60 * 1000));
+    const cutoffDate = new Date(now.getTime() - (RETENTION_MINUTES * 60 * 1000));
     const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
 
     console.log(`- Target Collection: usageHistory`);
