@@ -379,11 +379,22 @@ export default function App() {
   if (!user) {
     return (
       <div key={isDarkMode ? 'dark-landing' : 'light-landing'} className={isDarkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-[#0a0f12] dark:bg-[#0a0f12] flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden transition-colors duration-300 relative">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0f12] flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden transition-colors duration-500 relative">
+          {/* Theme Toggle - Fixed Position */}
+          <div className="fixed top-4 right-4 sm:top-8 sm:right-8 z-[100]">
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="w-10 h-10 sm:w-12 h-12 flex items-center justify-center bg-white dark:bg-white/5 backdrop-blur-md text-gray-900 dark:text-white rounded-xl sm:rounded-2xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 shadow-lg transition-all active:scale-95"
+              aria-label="Toggle Theme"
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+
           {/* Background Decorative Elements */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px]" />
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 dark:bg-emerald-900/20 rounded-full blur-[120px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 dark:bg-emerald-900/10 rounded-full blur-[120px]" />
           </div>
 
           {/* Left Side - Content & Branding */}
@@ -394,48 +405,55 @@ export default function App() {
               className="max-w-xl mx-auto lg:mx-0"
             >
               <div className="flex items-center gap-2 mb-8 lg:mb-12">
-                <span className="text-emerald-500 font-bold tracking-tight text-xl">Dapur Pintar</span>
+                <span className="text-emerald-600 dark:text-emerald-500 font-bold tracking-tight text-xl">Dapur Pintar</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white mb-6 lg:mb-8 leading-[1.1] tracking-tight">
-                Kelola dapur jadi lebih cerdas dengan <span className="text-emerald-400">AI</span>
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 dark:text-white mb-6 lg:mb-8 leading-[1.1] tracking-tight">
+                Kelola dapur jadi lebih cerdas dengan <span className="text-emerald-600 dark:text-emerald-400">AI</span>
               </h1>
               
-              <p className="text-base sm:text-lg lg:text-xl text-gray-400 font-medium leading-relaxed mb-8 lg:mb-12">
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600 dark:text-gray-400 font-medium leading-relaxed mb-8 lg:mb-12">
                 Optimalkan inventaris makanan, kurangi limbah, dan temukan resep berbasis AI yang dirancang khusus untuk kesehatan dan gaya hidup Anda.
               </p>
 
               {/* Feature Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 lg:mb-12">
-                <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:bg-[#121a1e] transition-all">
+                <div className="bg-white dark:bg-[#121a1e]/50 backdrop-blur-md border border-gray-100 dark:border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:shadow-xl dark:hover:bg-[#121a1e] transition-all">
                   <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Leaf className="w-5 h-5 text-emerald-500" />
+                    <Leaf className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-white mb-1">95%</div>
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Food Waste Reduction</div>
+                  <div className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-1">95%</div>
+                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Food Waste Reduction</div>
                 </div>
-                <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:bg-[#121a1e] transition-all">
+                <div className="bg-white dark:bg-[#121a1e]/50 backdrop-blur-md border border-gray-100 dark:border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] group hover:shadow-xl dark:hover:bg-[#121a1e] transition-all">
                   <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Zap className="w-5 h-5 text-blue-500" />
+                    <Zap className="w-5 h-5 text-blue-600 dark:text-blue-500" />
                   </div>
-                  <div className="text-2xl sm:text-3xl font-black text-white mb-1">Smart</div>
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Efficiency</div>
+                  <div className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-1">Smart</div>
+                  <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Efficiency</div>
                 </div>
               </div>
 
               {/* AI Recipe Card */}
-              <div className="bg-[#121a1e]/50 backdrop-blur-md border border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-between mb-8 lg:mb-12 group hover:bg-[#121a1e] transition-all">
+              <div className="bg-white dark:bg-[#121a1e]/50 backdrop-blur-md border border-gray-100 dark:border-white/5 p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-between mb-8 lg:mb-12 group hover:shadow-xl dark:hover:bg-[#121a1e] transition-all">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-12 h-12 bg-emerald-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
-                    <ChefHat className="w-5 h-5 sm:w-6 h-6 text-emerald-500" />
+                    <ChefHat className="w-5 h-5 sm:w-6 h-6 text-emerald-600 dark:text-emerald-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white">AI-Powered Recipes</h3>
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">AI-Powered Recipes</h3>
                     <p className="text-[10px] sm:text-xs text-gray-500">Personalized meal plans generated daily</p>
                   </div>
                 </div>
-                <div className="px-2 sm:px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                  <span className="text-[8px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live AI</span>
+                <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0 shadow-sm shadow-emerald-500/5">
+                  <motion.div 
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                  />
+                  <span className="text-[9px] sm:text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.1em] whitespace-nowrap">
+                    Live AI
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -443,23 +461,13 @@ export default function App() {
 
           {/* Right Side - Login Form */}
           <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-24 relative z-10">
-            {/* Theme Toggle */}
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
-              <button 
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className="w-10 h-10 sm:w-12 h-12 flex items-center justify-center bg-white/5 backdrop-blur-md text-white rounded-xl sm:rounded-2xl border border-white/10 hover:bg-white/10 transition-all"
-              >
-                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-            </div>
-
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-md bg-[#121a1e] p-6 sm:p-10 lg:p-12 rounded-[2rem] sm:rounded-[3rem] border border-white/5 shadow-2xl mb-32 lg:mb-0"
+              className="w-full max-w-md bg-white dark:bg-[#121a1e] p-6 sm:p-10 lg:p-12 rounded-[2rem] sm:rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl mb-32 lg:mb-0"
             >
               <div className="mb-6 sm:mb-10">
-                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
                   {authMode === "google" 
                     ? "Selamat Datang Kembali" 
                     : (showForgotPassword 
@@ -479,7 +487,7 @@ export default function App() {
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-8 p-4 bg-red-500/10 text-red-400 text-sm rounded-2xl border border-red-500/20 flex items-center gap-3"
+                  className="mb-8 p-4 bg-red-500/10 text-red-600 dark:text-red-400 text-sm rounded-2xl border border-red-500/20 flex items-center gap-3"
                 >
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                   <span className="font-medium">{loginError}</span>
@@ -498,7 +506,7 @@ export default function App() {
                     <button 
                       disabled={isAuthSubmitting}
                       onClick={handleLogin}
-                      className="w-full flex items-center justify-center gap-3 sm:gap-4 py-4 sm:py-5 bg-white/5 hover:bg-white/10 text-white rounded-xl sm:rounded-2xl font-bold transition-all border border-white/10 shadow-sm group disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-3 sm:gap-4 py-4 sm:py-5 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-900 dark:text-white rounded-xl sm:rounded-2xl font-bold transition-all border border-gray-200 dark:border-white/10 shadow-sm group disabled:opacity-50"
                     >
                       {isAuthSubmitting ? (
                         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 sm:w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full" />
@@ -509,20 +517,20 @@ export default function App() {
                     </button>
 
                     <div className="relative py-4">
-                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-                      <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-[#121a1e] px-4 text-gray-500 font-black tracking-[0.2em]">Atau gunakan email</span></div>
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-white/5"></div></div>
+                      <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white dark:bg-[#121a1e] px-4 text-gray-400 dark:text-gray-500 font-black tracking-[0.2em]">Atau gunakan email</span></div>
                     </div>
 
                     <button 
                       onClick={() => setAuthMode("email")}
-                      className="w-full py-4 sm:py-5 bg-emerald-500 text-white rounded-xl sm:rounded-2xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 text-sm sm:text-base"
+                      className="w-full py-4 sm:py-5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-xl sm:rounded-2xl font-bold hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 text-sm sm:text-base"
                     >
                       Masuk ke Dashboard
                     </button>
 
                     <div className="text-center">
                       <p className="text-sm text-gray-500 font-medium">
-                        Belum punya akun? <button onClick={() => { setAuthMode("email"); setIsSignUp(true); }} className="text-emerald-400 font-bold hover:underline">Daftar sekarang</button>
+                        Belum punya akun? <button onClick={() => { setAuthMode("email"); setIsSignUp(true); }} className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">Daftar sekarang</button>
                       </p>
                     </div>
                   </motion.div>
@@ -538,17 +546,17 @@ export default function App() {
                     {resetSent ? (
                       <div className="p-8 bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] text-center space-y-4">
                         <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
-                          <CheckCircle2 className="text-emerald-400 w-8 h-8" />
+                          <CheckCircle2 className="text-emerald-600 dark:text-emerald-400 w-8 h-8" />
                         </div>
-                        <h3 className="text-xl font-bold text-white">Email Terkirim!</h3>
-                        <p className="text-sm text-gray-400">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Email Terkirim!</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Silakan periksa kotak masuk Anda untuk instruksi reset kata sandi.</p>
                         <button 
                           type="button"
                           onClick={() => {
                             setShowForgotPassword(false);
                             setResetSent(false);
                           }}
-                          className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all"
+                          className="w-full py-4 bg-emerald-600 dark:bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-all"
                         >
                           Kembali ke Login
                         </button>
@@ -557,37 +565,37 @@ export default function App() {
                       <>
                         {isSignUp && !showForgotPassword && (
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Nama Lengkap</label>
                             <input 
                               required
                               type="text"
                               value={name}
                               onChange={(e) => setName(e.target.value)}
-                              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                              className="w-full px-6 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-700"
                               placeholder="Nama Anda"
                             />
                           </div>
                         )}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Email</label>
+                          <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Email</label>
                           <input 
                             required
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                            className="w-full px-6 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-700"
                             placeholder="nama@email.com"
                           />
                         </div>
                         {!showForgotPassword && (
                           <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
-                              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Password</label>
+                              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Password</label>
                               {!isSignUp && (
                                 <button 
                                   type="button"
                                   onClick={() => setShowForgotPassword(true)}
-                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest"
+                                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 uppercase tracking-widest"
                                 >
                                   Lupa password?
                                 </button>
@@ -598,7 +606,7 @@ export default function App() {
                               type="password"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-white placeholder:text-gray-700"
+                              className="w-full px-6 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-700"
                               placeholder="••••••••"
                             />
                           </div>
@@ -607,7 +615,7 @@ export default function App() {
                         <button 
                           disabled={isAuthSubmitting}
                           type="submit"
-                          className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                          className="w-full py-5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-3"
                         >
                           {isAuthSubmitting ? (
                             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
@@ -623,13 +631,13 @@ export default function App() {
                         <div className="flex flex-col gap-4 pt-4 text-center">
                           {!showForgotPassword ? (
                             <p className="text-sm text-gray-500 font-medium">
-                              {isSignUp ? "Sudah punya akun?" : "Belum punya akun?"} <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-emerald-400 font-bold hover:underline">{isSignUp ? "Masuk sekarang" : "Daftar sekarang"}</button>
+                              {isSignUp ? "Sudah punya akun?" : "Belum punya akun?"} <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">{isSignUp ? "Masuk sekarang" : "Daftar sekarang"}</button>
                             </p>
                           ) : (
                             <button 
                               type="button"
                               onClick={() => setShowForgotPassword(false)}
-                              className="text-sm font-bold text-emerald-400 hover:underline"
+                              className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                             >
                               Kembali ke Login
                             </button>
@@ -641,7 +649,7 @@ export default function App() {
                               setLoginError(null);
                               setShowForgotPassword(false);
                             }}
-                            className="text-xs font-bold text-gray-600 hover:text-gray-400 transition-colors uppercase tracking-widest"
+                            className="text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest"
                           >
                             Kembali ke Pilihan Lain
                           </button>
@@ -655,14 +663,14 @@ export default function App() {
           </div>
 
           {/* Footer */}
-          <footer className="lg:absolute lg:bottom-0 lg:left-0 w-full p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 z-20 bg-[#0a0f12]/80 backdrop-blur-sm lg:bg-transparent">
-            <div className="text-white font-bold text-lg">Dapur Pintar</div>
-            <div className="text-[9px] sm:text-[10px] text-gray-600 font-medium uppercase tracking-widest text-center max-w-[250px] sm:max-w-none">
+          <footer className="lg:absolute lg:bottom-0 lg:left-0 w-full p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 z-20 bg-white/80 dark:bg-[#0a0f12]/80 backdrop-blur-sm lg:bg-transparent border-t border-gray-100 dark:border-transparent">
+            <div className="text-gray-900 dark:text-white font-bold text-lg">Dapur Pintar</div>
+            <div className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-600 font-medium uppercase tracking-widest text-center max-w-[250px] sm:max-w-none">
               © 2025 DAPUR PINTAR AI. ENGINEERED FOR THE ETHEREAL ENGINE.
             </div>
             <div className="flex items-center gap-4 sm:gap-6">
               {['PRIVACY POLICY', 'TERMS', 'CONTACT'].map(link => (
-                <button key={link} className="text-[9px] sm:text-[10px] text-gray-600 font-bold hover:text-gray-400 transition-colors uppercase tracking-widest">
+                <button key={link} className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-600 font-bold hover:text-emerald-600 dark:hover:text-gray-400 transition-colors uppercase tracking-widest">
                   {link}
                 </button>
               ))}
