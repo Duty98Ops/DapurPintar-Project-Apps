@@ -66,7 +66,10 @@ service cloud.firestore {
              isValidEmail(data.email) &&
              (!('fullName' in data) || data.fullName is string) &&
              (!('age' in data) || data.age is number) &&
-             (!('origin' in data) || data.origin is string);
+             (!('origin' in data) || data.origin is string) &&
+             (!('reminderEmail' in data) || isValidEmail(data.reminderEmail)) &&
+             (!('emailRemindersEnabled' in data) || data.emailRemindersEnabled is bool) &&
+             (!('lastReminderSentAt' in data) || data.lastReminderSentAt is timestamp);
     }
 
     function isValidFoodItem(data) {

@@ -80,6 +80,7 @@ interface UserProfile {
   photoURL: string;
   reminderEmail?: string;
   emailRemindersEnabled?: boolean;
+  lastReminderSentAt?: Timestamp;
   createdAt: Timestamp;
 }
 
@@ -402,7 +403,61 @@ export default function App() {
 
     const unsubProfile = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
       if (docSnap.exists()) {
-        setUserProfile(docSnap.data() as UserProfile);
+        const data = docSnap.data() as UserProfile;
+        setUserProfile(data);
+        
+        // Automated Reminder Check logic moved here for direct profile access
+        const checkReminders = async () => {
+          if (!data.emailRemindersEnabled) return;
+          
+          const now = new Date();
+          const lastSent = data.lastReminderSentAt?.toDate();
+          
+          // Check if we already sent an email in the last 24 hours
+          if (lastSent && (now.getTime() - lastSent.getTime()) < 24 * 60 * 60 * 1000) {
+            return;
+          }
+
+          // Check if foodItems are loaded and find expiring ones
+          if (foodItems.length > 0) {
+            const threeDaysFromNow = addDays(new Date(), 3);
+            const expiringItems = foodItems.filter(item => {
+              const expiryDate = item.expiryDate.toDate();
+              return expiryDate <= threeDaysFromNow && expiryDate > new Date(new Date().setHours(0,0,0,0));
+            });
+
+            if (expiringItems.length > 0) {
+              console.log("DEBUG: Auto-triggering reminder via frontend check...");
+              try {
+                const response = await fetch("/api/send-automated-reminder", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email: data.reminderEmail || data.email,
+                    name: data.fullName || data.displayName,
+                    expiringItems: expiringItems.map(item => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      unit: item.unit,
+                      expiryDate: item.expiryDate.toDate().toISOString()
+                    }))
+                  })
+                });
+                
+                if (response.ok) {
+                  await updateDoc(doc(db, "users", user.uid), {
+                    lastReminderSentAt: serverTimestamp()
+                  });
+                  console.log("DEBUG: Automated reminder successfully sent and logged.");
+                }
+              } catch (err) {
+                console.error("Error sending automated reminder:", err);
+              }
+            }
+          }
+        };
+
+        checkReminders();
       } else {
         // Initialize profile if it doesn't exist
         const initialProfile: Partial<UserProfile> = {
@@ -2215,7 +2270,7 @@ function ProfileView({
 
       const data = await response.json();
       if (response.ok) {
-        setMessage({ type: "success", text: "Email percobaan berhasil dikirim! Silakan cek folder Inbox atau Spam Anda." });
+        setMessage({ type: "success", text: `Email terkirim ke Brevo! ID: ${data.messageId.slice(0, 10)}... Cek folder SPAM/PROMOSI di Gmail Anda.` });
       } else {
         throw new Error(data.error || "Gagal mengirim email.");
       }
@@ -2422,7 +2477,7 @@ function ProfileView({
                   <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-start gap-3">
                     <Info size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" />
                     <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
-                      Catatan: Pengiriman email otomatis memerlukan integrasi email gateway (SendGrid/Resend). Untuk saat ini, sistem akan mencatat preferensi Anda.
+                      Catatan: Sistem akan otomatis mengecek stok dapur Anda setiap 6 jam dan mengirimkan peringatan jika ada bahan yang akan kedaluwarsa via Brevo.
                     </p>
                   </div>
                 </div>
