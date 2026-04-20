@@ -15,6 +15,51 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Brevo Email API
+  app.post("/api/send-test-email", async (req, res) => {
+    const { email, name } = req.body;
+    const BREVO_API_KEY = process.env.BREVO_API_KEY;
+
+    if (!BREVO_API_KEY) {
+      return res.status(500).json({ error: "Brevo API Key belum dikonfigurasi di server." });
+    }
+
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": BREVO_API_KEY,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          sender: { name: "DapurPintar", email: "noreply@dapurpintar.com" },
+          to: [{ email: email, name: name || "Pengguna DapurPintar" }],
+          subject: "Tes Notifikasi Email DapurPintar 🍳",
+          htmlContent: `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+              <h2 style="color: #059669;">Halo ${name || "Pengguna"}!</h2>
+              <p>Ini adalah email percobaan dari fitur <b>Notifikasi Pintar DapurPintar</b>.</p>
+              <p>Jika Anda menerima email ini, berarti integrasi Brevo Anda sudah berhasil dikonfigurasi dengan benar.</p>
+              <br/>
+              <p>Selamat memasak!<br/>Tim DapurPintar</p>
+            </div>
+          `
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        res.json({ success: true, messageId: data.messageId });
+      } else {
+        throw new Error(data.message || "Gagal mengirim email via Brevo.");
+      }
+    } catch (error: any) {
+      console.error("Brevo Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Gemini AI Setup (Server-side)
   // Using a custom name to avoid AI Studio's reserved name "GEMINI_API_KEY"
   const GEMINI_API_KEY = process.env.MY_CUSTOM_GEMINI_KEY || process.env.GEMINI_API_KEY || "";

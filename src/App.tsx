@@ -42,7 +42,8 @@ import {
   Loader2,
   Check,
   Bell,
-  BellOff
+  BellOff,
+  Mail
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe, analyzeImageForInventory, AnalyzedItem } from "./services/geminiService";
@@ -2131,6 +2132,7 @@ function ProfileView({
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(userProfile?.emailRemindersEnabled || false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2192,6 +2194,36 @@ function ProfileView({
       setMessage({ type: "error", text: error.message || "Terjadi kesalahan saat mengunggah." });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!reminderEmail) {
+      setMessage({ type: "error", text: "Silakan isi alamat email pengingat terlebih dahulu." });
+      return;
+    }
+
+    setIsTestingEmail(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/send-test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: reminderEmail, name: displayName || fullName })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage({ type: "success", text: "Email percobaan berhasil dikirim! Silakan cek folder Inbox atau Spam Anda." });
+      } else {
+        throw new Error(data.error || "Gagal mengirim email.");
+      }
+    } catch (error: any) {
+      console.error("Test email error:", error);
+      setMessage({ type: "error", text: error.message || "Gagal mengirim email percobaan." });
+    } finally {
+      setIsTestingEmail(false);
     }
   };
 
@@ -2399,6 +2431,20 @@ function ProfileView({
               <div className="pt-2">
                 <button
                   type="button"
+                  disabled={isTestingEmail}
+                  onClick={handleTestEmail}
+                  className="w-full py-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 border border-emerald-100 dark:border-emerald-900/40 disabled:opacity-50"
+                >
+                  {isTestingEmail ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full" />
+                  ) : (
+                    <Mail size={14} />
+                  )}
+                  Kirim Email Tes (Brevo)
+                </button>
+                
+                <button
+                  type="button"
                   onClick={() => {
                     sendLocalNotification(
                       "Tes Notifikasi Berhasil! 🎉",
@@ -2408,7 +2454,7 @@ function ProfileView({
                   className="w-full py-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-2xl font-bold text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700"
                 >
                   <RefreshCw size={14} />
-                  Kirim Notifikasi Tes
+                  Kirim Notifikasi Browser Tes
                 </button>
               </div>
             </div>
