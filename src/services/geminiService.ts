@@ -153,17 +153,21 @@ export async function analyzeImageForInventory(base64Image: string, mimeType: st
     };
 
     const textPart = {
-      text: `Identify food items from this image (receipt or product label). 
-      Extract the following information for each item:
-      - name (product name)
-      - category (e.g., Sayuran, Daging, Bumbu, Buah, dll)
-      - quantity (numeric)
-      - unit (e.g., kg, gram, pcs, liter)
-      - estimatedExpiryDays (integer, how many days the item typically lasts if not specified)
-      
-      Return ONLY a JSON array of objects following the defined schema. 
-      If it's a receipt, list multiple items. If it's a single product, list one item.
-      Language: use Indonesian for names and categories.`,
+      text: `Analyze this image (could be a supermarket receipt, a product label, or a barcode).
+      Tasks:
+      1. If there's a barcode, identify the product name associated with it.
+      2. If it's a receipt, extract ALL separate food/kitchen-related items.
+      3. For each item, provide:
+         - name: (Product name, e.g., "ABC Kecap Asin")
+         - category: (Choose best fit: Sayuran, Buah, Daging, Susu, Bumbu, Camilan, Minuman, Kebersihan, Lainnya)
+         - quantity: (The numeric quantity from receipt or 1 if label)
+         - unit: (e.g., "pcs", "kg", "gram", "ml")
+         - estimatedExpiryDays: (An estimate of how many days until it typically expires/spoils)
+
+      Rules:
+      - Only include physical products (skip discounts, total prices, tax lines).
+      - Use Indonesian for names and categories.
+      - Return ONLY a JSON array of objects.`,
     };
 
     const response = await ai.models.generateContent({

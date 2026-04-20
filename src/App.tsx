@@ -39,7 +39,8 @@ import {
   RefreshCw,
   Scan,
   X,
-  Loader2
+  Loader2,
+  Check
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe, analyzeImageForInventory, AnalyzedItem } from "./services/geminiService";
@@ -1157,25 +1158,43 @@ function SmartScanModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detectedItems, setDetectedItems] = useState<AnalyzedItem[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [step, setStep] = useState<"scan" | "review">("scan");
 
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
+        video: { 
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
       });
       setStream(mediaStream);
-      if (videoRef.current) videoRef.current.srcObject = mediaStream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        // Explicitly play for mobile browsers
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => console.error("Video play error:", e));
+        };
+      }
     } catch (err) {
       setError("Gagal mengakses kamera. Pastikan izin diberikan.");
     }
   };
 
   useEffect(() => {
-    startCamera();
+    if (step === "scan") {
+      startCamera();
+    }
     return () => {
-      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
     };
-  }, []);
+  }, [step]);
 
   const captureAndAnalyze = async () => {
     if (!videoRef.current) return;
@@ -1189,16 +1208,16 @@ function SmartScanModal({
     if (!ctx) return;
     ctx.drawImage(videoRef.current, 0, 0);
     
-    // Get base64 without prefix
-    const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+    const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
     
     try {
       const result = await analyzeImageForInventory(base64, "image/jpeg");
       if (result.length > 0) {
-        onDetected(result);
-        onClose();
+        setDetectedItems(result);
+        setSelectedIndices(new Set(result.map((_, i) => i)));
+        setStep("review");
       } else {
-        setError("Tidak ada item makanan yang terdeteksi.");
+        setError("Tidak ada item makanan yang terdeteksi. Coba lagi.");
       }
     } catch (err: any) {
       setError(err.message || "Gagal menganalisis gambar.");
@@ -1220,8 +1239,9 @@ function SmartScanModal({
       try {
         const result = await analyzeImageForInventory(base64, file.type);
         if (result.length > 0) {
-          onDetected(result);
-          onClose();
+          setDetectedItems(result);
+          setSelectedIndices(new Set(result.map((_, i) => i)));
+          setStep("review");
         } else {
           setError("Tidak ada item makanan yang terdeteksi.");
         }
@@ -1234,12 +1254,25 @@ function SmartScanModal({
     reader.readAsDataURL(file);
   };
 
+  const toggleSelection = (index: number) => {
+    const next = new Set(selectedIndices);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    setSelectedIndices(next);
+  };
+
+  const confirmSelection = () => {
+    const selected = detectedItems.filter((_, i) => selectedIndices.has(i));
+    onDetected(selected);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl relative"
+        className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]"
       >
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1247,8 +1280,12 @@ function SmartScanModal({
               <Zap className="text-emerald-600 dark:text-emerald-400" size={20} />
             </div>
             <div>
-              <h3 className="font-black text-gray-900 dark:text-white">Smart Scan</h3>
-              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">AI Inventory Bot</p>
+              <h3 className="font-black text-gray-900 dark:text-white">
+                {step === "scan" ? "Smart Scan" : "Tinjau Hasil"}
+              </h3>
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+                {step === "scan" ? "AI Inventory Bot" : `${selectedIndices.size} item dipilih`}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
@@ -1256,58 +1293,116 @@ function SmartScanModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-[2rem] overflow-hidden relative border-2 border-dashed border-gray-200 dark:border-gray-700">
-            {stream ? (
-              <>
-                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                <div className="absolute inset-0 border-[3rem] border-black/40 pointer-events-none">
-                  <div className="w-full h-full border-2 border-emerald-400/50 rounded-lg relative">
-                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1" />
-                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1" />
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1" />
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1" />
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+          {step === "scan" ? (
+            <div className="space-y-6">
+              <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-[2rem] overflow-hidden relative border-2 border-dashed border-gray-200 dark:border-gray-700">
+                {stream ? (
+                  <>
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 border-[2rem] border-black/20 pointer-events-none">
+                      <div className="w-full h-full border-2 border-emerald-400/50 rounded-lg relative">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1" />
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1" />
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1" />
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2 p-8 text-center">
+                    <Camera size={48} strokeWidth={1} />
+                    <p className="text-sm font-medium">Memulai kamera...</p>
+                    <p className="text-xs">Arahkan ke Barcode atau Struk Belanja</p>
                   </div>
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                <Camera size={48} strokeWidth={1} />
-                <p className="text-sm font-medium">Memulai kamera...</p>
+                )}
+                
+                {isScanning && (
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
+                    <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                    <p className="font-bold tracking-wide">Menganalisis...</p>
+                  </div>
+                )}
               </div>
-            )}
-            
-            {isScanning && (
-              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
-                <Loader2 className="w-10 h-10 animate-spin mb-3" />
-                <p className="font-bold tracking-wide">Menganalisis...</p>
-              </div>
-            )}
-          </div>
 
-          {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400 text-sm font-medium">
-              <AlertTriangle size={18} />
-              {error}
+              {error && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400 text-xs font-medium">
+                  <AlertTriangle size={16} />
+                  {error}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={captureAndAnalyze}
+                  disabled={isScanning || !stream}
+                  className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  <Scan size={20} />
+                  Ambil Foto
+                </button>
+                <label className="py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+                  <Camera size={20} />
+                  Upload Struk
+                  <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-500 mb-2 font-medium">
+                Kami menemukan {detectedItems.length} item. Pilih produk yang ingin Anda tambahkan ke inventaris dapur.
+              </div>
+              <div className="space-y-3">
+                {detectedItems.map((item, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => toggleSelection(idx)}
+                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                      selectedIndices.has(idx) 
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10" 
+                        : "border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                        selectedIndices.has(idx) ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-gray-600"
+                      }`}>
+                        {selectedIndices.has(idx) && <Check size={14} className="text-white" />}
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 dark:text-white text-sm">{item.name}</div>
+                        <div className="text-[10px] uppercase font-black text-gray-400 flex gap-2">
+                          <span>{item.category}</span>
+                          <span>•</span>
+                          <span>{item.quantity} {item.unit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={captureAndAnalyze}
-              disabled={isScanning || !stream}
-              className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
-            >
-              <Scan size={20} />
-              Ambil Foto
-            </button>
-            <label className="py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
-              <Camera size={20} />
-              Upload Struk
-              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-            </label>
-          </div>
         </div>
+
+        {step === "review" && (
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20 grid grid-cols-2 gap-4">
+            <button 
+              onClick={() => setStep("scan")}
+              className="py-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-2xl font-bold hover:bg-gray-50 transition-all"
+            >
+              Scan Ulang
+            </button>
+            <button 
+              onClick={confirmSelection}
+              disabled={selectedIndices.size === 0}
+              className="py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
+            >
+              Tambah ({selectedIndices.size})
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
@@ -1326,9 +1421,36 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSmartScan, setShowSmartScan] = useState(false);
 
-  const handleSmartScan = (items: AnalyzedItem[]) => {
-    // Fill the first detected item and suggest others if any
-    if (items.length > 0) {
+  const handleSmartScan = async (items: AnalyzedItem[]) => {
+    // If multiple items, we bulk create them in Firestore
+    if (items.length > 1) {
+      setIsSubmitting(true);
+      try {
+        const batchPromises = items.map(item => {
+          const futureDate = addDays(new Date(), item.estimatedExpiryDays);
+          const foodData = {
+            userId: auth.currentUser?.uid,
+            name: item.name,
+            category: item.category,
+            quantity: Number(item.quantity) || 1,
+            unit: item.unit || "pcs",
+            expiryDate: Timestamp.fromDate(futureDate),
+            status: "available" as const,
+            updatedAt: serverTimestamp(),
+            addedAt: serverTimestamp()
+          };
+          return addDoc(collection(db, "foodItems"), foodData);
+        });
+        
+        await Promise.all(batchPromises);
+        onComplete();
+      } catch (e) {
+        console.error("Bulk add error:", e);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (items.length === 1) {
+      // If only one item, fill the form
       const item = items[0];
       setName(item.name);
       setCategory(item.category);
