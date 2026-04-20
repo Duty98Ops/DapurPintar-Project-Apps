@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as dotenv from "dotenv";
@@ -10,9 +9,8 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function startServer() {
+async function createServer() {
   const app = express();
-  const PORT = 3000;
 
   app.use(express.json());
 
@@ -136,17 +134,14 @@ async function startServer() {
   });
 
   // Gemini AI Setup (Server-side)
-  // Using a custom name to avoid AI Studio's reserved name "GEMINI_API_KEY"
   const GEMINI_API_KEY = process.env.MY_CUSTOM_GEMINI_KEY || process.env.GEMINI_API_KEY || "";
-  
   if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
     console.warn("WARNING: Gemini API Key is empty or using placeholder value!");
   }
 
-  // Simple in-memory cache for recipes (Moved to frontend in geminiService.ts)
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -160,9 +155,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  return app;
+}
+
+// Start the server for production/local dev
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  createServer().then(app => {
+    const PORT = 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
   });
 }
 
-startServer();
+export default createServer;

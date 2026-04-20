@@ -449,6 +449,9 @@ export default function App() {
                     lastReminderSentAt: serverTimestamp()
                   });
                   console.log("DEBUG: Automated reminder successfully sent and logged.");
+                } else {
+                  const errorText = await response.text();
+                  console.error(`DEBUG: Automated reminder API failed (${response.status}):`, errorText);
                 }
               } catch (err) {
                 console.error("Error sending automated reminder:", err);
@@ -2268,11 +2271,20 @@ function ProfileView({
         body: JSON.stringify({ email: reminderEmail, name: displayName || fullName })
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
       if (response.ok) {
-        setMessage({ type: "success", text: `Email terkirim ke Brevo! ID: ${data.messageId.slice(0, 10)}... Cek folder SPAM/PROMOSI di Gmail Anda.` });
+        const data = await response.json();
+        setMessage({ type: "success", text: `Email terkirim ke Brevo! ID: ${data.messageId?.slice(0, 10)}... Cek folder SPAM/PROMOSI di Gmail Anda.` });
       } else {
-        throw new Error(data.error || "Gagal mengirim email.");
+        let errorMessage = "Gagal mengirim email.";
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } else {
+          const text = await response.text();
+          errorMessage = `Server Error: ${response.status}. ${text.slice(0, 100)}`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       console.error("Test email error:", error);
