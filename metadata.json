@@ -1,5 +1,5 @@
 {
   "name": "DapurPintar",
   "description": "Aplikasi manajemen stok makanan rumah tangga dengan pengingat kedaluwarsa dan rekomendasi resep cerdas.",
-  "requestFramePermissions": ["notifications"]
+  "requestFramePermissions": ["notifications", "camera"]
 }

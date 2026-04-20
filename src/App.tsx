@@ -34,10 +34,15 @@ import {
   Moon,
   Sun,
   Leaf,
-  Zap
+  Zap,
+  Info,
+  RefreshCw,
+  Scan,
+  X,
+  Loader2
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
-import { getRecipeRecommendations, Recipe } from "./services/geminiService";
+import { getRecipeRecommendations, Recipe, analyzeImageForInventory, AnalyzedItem } from "./services/geminiService";
 
 // --- Types ---
 interface FoodItem {
@@ -182,6 +187,27 @@ export default function App() {
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [recipes, setRecipes] = useState<Recipe[]>(() => {
+    try {
+      const saved = localStorage.getItem('dapur_recipes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
+  });
+  const [recipesLoading, setRecipesLoading] = useState(false);
+  const [recipesError, setRecipesError] = useState<string | null>(null);
+  const [isRecipesFallback, setIsRecipesFallback] = useState(() => {
+    try {
+      return localStorage.getItem('dapur_recipes_fallback') === 'true';
+    } catch (e) { return false; }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dapur_recipes', JSON.stringify(recipes));
+      localStorage.setItem('dapur_recipes_fallback', String(isRecipesFallback));
+    } catch (e) {}
+  }, [recipes, isRecipesFallback]);
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -760,7 +786,18 @@ export default function App() {
               />
             )}
             {activeTab === "recipes" && (
-              <RecipeRecommendations key="recipes" foodItems={foodItems} />
+              <RecipeRecommendations 
+                key="recipes" 
+                foodItems={foodItems} 
+                recipes={recipes}
+                setRecipes={setRecipes}
+                loading={recipesLoading}
+                setLoading={setRecipesLoading}
+                error={recipesError}
+                setError={setRecipesError}
+                isFallback={isRecipesFallback}
+                setIsFallback={setIsRecipesFallback}
+              />
             )}
             {activeTab === "history" && (
               <HistoryView key="history" history={history} />
@@ -1109,6 +1146,173 @@ function StatCard({ label, value, icon, color }: { label: string, value: number 
   );
 }
 
+function SmartScanModal({ 
+  onClose, 
+  onDetected 
+}: { 
+  onClose: () => void, 
+  onDetected: (items: AnalyzedItem[]) => void 
+}) {
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      setStream(mediaStream);
+      if (videoRef.current) videoRef.current.srcObject = mediaStream;
+    } catch (err) {
+      setError("Gagal mengakses kamera. Pastikan izin diberikan.");
+    }
+  };
+
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
+  const captureAndAnalyze = async () => {
+    if (!videoRef.current) return;
+    setIsScanning(true);
+    setError(null);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0);
+    
+    // Get base64 without prefix
+    const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+    
+    try {
+      const result = await analyzeImageForInventory(base64, "image/jpeg");
+      if (result.length > 0) {
+        onDetected(result);
+        onClose();
+      } else {
+        setError("Tidak ada item makanan yang terdeteksi.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Gagal menganalisis gambar.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      try {
+        const result = await analyzeImageForInventory(base64, file.type);
+        if (result.length > 0) {
+          onDetected(result);
+          onClose();
+        } else {
+          setError("Tidak ada item makanan yang terdeteksi.");
+        }
+      } catch (err: any) {
+        setError(err.message || "Gagal menganalisis gambar.");
+      } finally {
+        setIsScanning(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl relative"
+      >
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+              <Zap className="text-emerald-600 dark:text-emerald-400" size={20} />
+            </div>
+            <div>
+              <h3 className="font-black text-gray-900 dark:text-white">Smart Scan</h3>
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">AI Inventory Bot</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-[2rem] overflow-hidden relative border-2 border-dashed border-gray-200 dark:border-gray-700">
+            {stream ? (
+              <>
+                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                <div className="absolute inset-0 border-[3rem] border-black/40 pointer-events-none">
+                  <div className="w-full h-full border-2 border-emerald-400/50 rounded-lg relative">
+                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1" />
+                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1" />
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1" />
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                <Camera size={48} strokeWidth={1} />
+                <p className="text-sm font-medium">Memulai kamera...</p>
+              </div>
+            )}
+            
+            {isScanning && (
+              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
+                <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                <p className="font-bold tracking-wide">Menganalisis...</p>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400 text-sm font-medium">
+              <AlertTriangle size={18} />
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={captureAndAnalyze}
+              disabled={isScanning || !stream}
+              className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
+            >
+              <Scan size={20} />
+              Ambil Foto
+            </button>
+            <label className="py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+              <Camera size={20} />
+              Upload Struk
+              <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            </label>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingItem?: FoodItem | null }) {
   const [name, setName] = useState(editingItem?.name || "");
   const [category, setCategory] = useState(editingItem?.category || "Lainnya");
@@ -1120,6 +1324,21 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
       : format(addDays(new Date(), 7), "yyyy-MM-dd")
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSmartScan, setShowSmartScan] = useState(false);
+
+  const handleSmartScan = (items: AnalyzedItem[]) => {
+    // Fill the first detected item and suggest others if any
+    if (items.length > 0) {
+      const item = items[0];
+      setName(item.name);
+      setCategory(item.category);
+      setQuantity(item.quantity.toString());
+      setUnit(item.unit);
+      
+      const futureDate = addDays(new Date(), item.estimatedExpiryDays);
+      setExpiryDate(format(futureDate, "yyyy-MM-dd"));
+    }
+  };
 
   const categories = ["Sayuran", "Buah", "Daging", "Susu", "Bumbu", "Camilan", "Lainnya"];
 
@@ -1165,19 +1384,38 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
       exit={{ opacity: 0, scale: 0.95 }}
       className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 max-w-xl mx-auto transition-colors"
     >
-      <div className="flex items-center gap-4 mb-10">
-        <button onClick={onComplete} className="w-12 h-12 flex items-center justify-center bg-gray-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-400 hover:text-emerald-600 rounded-2xl transition-all">
-          <ArrowLeft size={24} />
-        </button>
-        <div>
-          <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-            {editingItem ? "Edit Stok" : "Tambah Stok"}
-          </h2>
-          <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">
-            {editingItem ? "Perbarui detail bahan makanan Anda." : "Masukkan detail bahan makanan baru."}
-          </p>
+      <div className="flex items-center justify-between gap-4 mb-10">
+        <div className="flex items-center gap-4">
+          <button onClick={onComplete} className="w-12 h-12 flex items-center justify-center bg-gray-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-400 hover:text-emerald-600 rounded-2xl transition-all">
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+              {editingItem ? "Edit Stok" : "Tambah Stok"}
+            </h2>
+            <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">
+              {editingItem ? "Perbarui detail bahan makanan Anda." : "Masukkan detail bahan makanan baru."}
+            </p>
+          </div>
         </div>
+        {!editingItem && (
+          <button 
+            type="button"
+            onClick={() => setShowSmartScan(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all"
+          >
+            <Zap size={14} className="fill-white" />
+            Smart Scan
+          </button>
+        )}
       </div>
+
+      {showSmartScan && (
+        <SmartScanModal 
+          onClose={() => setShowSmartScan(false)} 
+          onDetected={handleSmartScan}
+        />
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="space-y-3">
@@ -1262,27 +1500,66 @@ function AddFood({ onComplete, editingItem }: { onComplete: () => void, editingI
   );
 }
 
-function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(false);
+function RecipeRecommendations({ 
+  foodItems, 
+  recipes, 
+  setRecipes, 
+  loading, 
+  setLoading, 
+  error, 
+  setError,
+  isFallback,
+  setIsFallback
+}: { 
+  foodItems: FoodItem[], 
+  recipes: Recipe[], 
+  setRecipes: (r: Recipe[]) => void,
+  loading: boolean,
+  setLoading: (l: boolean) => void,
+  error: string | null,
+  setError: (e: string | null) => void,
+  isFallback: boolean,
+  setIsFallback: (b: boolean) => void
+}) {
+  const [retryTimer, setRetryTimer] = useState(0);
 
   const fetchRecipes = async () => {
     if (foodItems.length === 0) return;
     setLoading(true);
+    setError(null);
     try {
       const ingredientData = foodItems.map(i => ({ name: i.name, category: i.category }));
-      const recs = await getRecipeRecommendations(ingredientData);
+      const response = await getRecipeRecommendations(ingredientData);
       // Sort by match score descending
-      setRecipes(recs.sort((a, b) => b.matchScore - a.matchScore));
-    } catch (e) {
+      setRecipes(response.recipes.sort((a, b) => b.matchScore - a.matchScore));
+      setIsFallback(response.isFallback);
+    } catch (e: any) {
       console.error("Recipe fetch error:", e);
+      setError(e.message || "Gagal memuat resep.");
+      
+      // If it's a quota error, set a 60s cooldown
+      if (e.message?.includes("Limit AI") || e.message?.includes("kuota")) {
+        setRetryTimer(60);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRecipes();
+    let timer: any;
+    if (retryTimer > 0) {
+      timer = setInterval(() => {
+        setRetryTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [retryTimer]);
+
+  useEffect(() => {
+    if (recipes.length === 0 && !error) {
+      fetchRecipes();
+    }
   }, []);
 
   return (
@@ -1299,12 +1576,40 @@ function RecipeRecommendations({ foodItems }: { foodItems: FoodItem[] }) {
         </div>
         <button 
           onClick={fetchRecipes}
-          disabled={loading}
-          className="w-14 h-14 flex items-center justify-center bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none disabled:opacity-50"
+          disabled={loading || retryTimer > 0}
+          className="w-14 h-14 flex flex-col items-center justify-center bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:shadow-none"
         >
-          <ChefHat className={`${loading ? 'animate-bounce' : ''}`} size={24} />
+          {retryTimer > 0 ? (
+            <span className="text-xs font-black">{retryTimer}s</span>
+          ) : (
+            <ChefHat className={`${loading ? 'animate-bounce' : ''}`} size={24} />
+          )}
         </button>
       </div>
+
+      {isFallback && (
+        <div className="p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-[2rem] flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Info className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h4 className="font-bold text-blue-900 dark:text-blue-200">Mode Offline / Terbatas</h4>
+            <p className="text-sm text-blue-700 dark:text-blue-400/80">Kuota AI harian telah habis. Kami menyajikan resep standar untuk sementara waktu.</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-[2rem] flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-100 dark:bg-amber-800 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h4 className="font-bold text-amber-900 dark:text-amber-200">Informasi AI</h4>
+            <p className="text-sm text-amber-700 dark:text-amber-400/80">{error}</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-6">
