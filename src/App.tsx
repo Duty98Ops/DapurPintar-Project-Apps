@@ -40,7 +40,9 @@ import {
   Scan,
   X,
   Loader2,
-  Check
+  Check,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe, analyzeImageForInventory, AnalyzedItem } from "./services/geminiService";
@@ -75,6 +77,8 @@ interface UserProfile {
   age: number;
   origin: string;
   photoURL: string;
+  reminderEmail?: string;
+  emailRemindersEnabled?: boolean;
   createdAt: Timestamp;
 }
 
@@ -196,6 +200,7 @@ export default function App() {
   });
   const [recipesLoading, setRecipesLoading] = useState(false);
   const [recipesError, setRecipesError] = useState<string | null>(null);
+  const [notifMessage, setNotifMessage] = useState<{ type: "success" | "error" | "info", text: string } | null>(null);
   const [isRecipesFallback, setIsRecipesFallback] = useState(() => {
     try {
       return localStorage.getItem('dapur_recipes_fallback') === 'true';
@@ -216,6 +221,105 @@ export default function App() {
     } catch (e) {}
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('dapur_notifications') === 'true';
+    } catch (e) { return false; }
+  });
+
+  const requestNotificationPermission = async () => {
+    setNotifMessage(null);
+
+    if (!("Notification" in window)) {
+      setNotifMessage({ type: "error", text: "Browser Anda tidak mendukung notifikasi." });
+      return false;
+    }
+    
+    // Check if we are inside an iframe
+    const isIframe = window.self !== window.top;
+    if (isIframe && Notification.permission !== "granted") {
+      setNotifMessage({ 
+        type: "info", 
+        text: "Harap buka aplikasi di Tab Baru (ikon pojok kanan atas) untuk mengaktifkan izin notifikasi." 
+      });
+      return false;
+    }
+
+    if (Notification.permission === "granted") {
+      setNotificationsEnabled(true);
+      localStorage.setItem('dapur_notifications', 'true');
+      setNotifMessage({ type: "success", text: "Notifikasi sudah aktif!" });
+      return true;
+    }
+
+    if (Notification.permission === "denied") {
+      setNotifMessage({ 
+        type: "error", 
+        text: "Izin notifikasi diblokir browser. Harap aktifkan lewat pengaturan alamat bar (ikon gembok)." 
+      });
+      return false;
+    }
+    
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        localStorage.setItem('dapur_notifications', 'true');
+        setNotificationsEnabled(true);
+        setNotifMessage({ type: "success", text: "Notifikasi berhasil diaktifkan!" });
+        return true;
+      } else {
+        setNotifMessage({ type: "error", text: "Izin notifikasi ditolak." });
+      }
+    } catch (e) {
+      console.error("Error requesting permission:", e);
+      setNotifMessage({ type: "error", text: "Terjadi kesalahan saat meminta izin." });
+    }
+    return false;
+  };
+
+  const sendLocalNotification = (title: string, body: string) => {
+    if (!notificationsEnabled || Notification.permission !== "granted") return;
+    
+    try {
+      const notification = new Notification(title, {
+        body,
+        icon: "https://picsum.photos/seed/kitchen/128/128",
+        tag: "expiry-reminder"
+      });
+      notification.onclick = () => {
+        window.focus();
+        setActiveTab("dashboard");
+      };
+    } catch (e) {
+      console.error("Failed to send notification:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (user && notificationsEnabled && foodItems.length > 0 && isAuthReady) {
+      const expiringSoon = foodItems.filter(item => {
+        const daysLeft = differenceInDays(item.expiryDate.toDate(), new Date());
+        return daysLeft >= 0 && daysLeft <= 3;
+      });
+
+      if (expiringSoon.length > 0) {
+        const lastNotified = localStorage.getItem('last_notified_expiry');
+        const today = new Date().toDateString();
+        
+        if (lastNotified !== today) {
+          const names = expiringSoon.slice(0, 3).map(i => i.name).join(", ");
+          const moreCount = expiringSoon.length > 3 ? ` dan ${expiringSoon.length - 3} lainnya` : "";
+          
+          sendLocalNotification(
+            "Peringatan Kedaluwarsa! 🚨",
+            `${expiringSoon.length} bahan hampir kedaluwarsa: ${names}${moreCount}. Segera gunakan atau olah!`
+          );
+          localStorage.setItem('last_notified_expiry', today);
+        }
+      }
+    }
+  }, [user, foodItems.length, notificationsEnabled, isAuthReady]);
 
   useEffect(() => {
     console.log('[Theme] Current mode:', isDarkMode ? 'dark' : 'light');
@@ -770,6 +874,9 @@ export default function App() {
                 key="dashboard" 
                 foodItems={foodItems} 
                 setActiveTab={setActiveTab} 
+                notificationsEnabled={notificationsEnabled}
+                setNotificationsEnabled={setNotificationsEnabled}
+                requestNotificationPermission={requestNotificationPermission}
                 onEdit={(item) => {
                   setEditingItem(item);
                   setActiveTab("add");
@@ -804,7 +911,13 @@ export default function App() {
               <HistoryView key="history" history={history} />
             )}
             {activeTab === "profile" && (
-              <ProfileView key="profile" user={user} userProfile={userProfile} />
+              <ProfileView 
+                key="profile" 
+                user={user} 
+                userProfile={userProfile} 
+                sendLocalNotification={sendLocalNotification}
+                requestNotificationPermission={requestNotificationPermission}
+              />
             )}
           </AnimatePresence>
         </main>
@@ -838,6 +951,30 @@ export default function App() {
             />
           </nav>
         </div>
+
+        {/* Feedback Message (Toast) */}
+        <AnimatePresence>
+          {notifMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: 20, x: "-50%" }}
+              className={`fixed bottom-28 left-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border min-w-[300px] max-w-sm ${
+                notifMessage.type === "success" 
+                  ? "bg-emerald-500 text-white border-emerald-400" 
+                  : notifMessage.type === "error"
+                    ? "bg-red-500 text-white border-red-400"
+                    : "bg-gray-900 text-white border-gray-700"
+              }`}
+            >
+              {notifMessage.type === "success" ? <Check size={18} /> : notifMessage.type === "error" ? <AlertTriangle size={18} /> : <Info size={18} />}
+              <p className="text-sm font-bold flex-1">{notifMessage.text}</p>
+              <button onClick={() => setNotifMessage(null)} className="p-1 hover:bg-white/20 rounded-lg">
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
     </ErrorBoundary>
@@ -867,7 +1004,21 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
   );
 }
 
-function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[], setActiveTab: (tab: any) => void, onEdit: (item: FoodItem) => void }) {
+function Dashboard({ 
+  foodItems, 
+  setActiveTab, 
+  onEdit,
+  notificationsEnabled,
+  setNotificationsEnabled,
+  requestNotificationPermission
+}: { 
+  foodItems: FoodItem[], 
+  setActiveTab: (tab: any) => void, 
+  onEdit: (item: FoodItem) => void,
+  notificationsEnabled: boolean,
+  setNotificationsEnabled: (v: boolean) => void,
+  requestNotificationPermission: () => Promise<boolean>
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
@@ -918,6 +1069,31 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
       exit={{ opacity: 0, y: -20 }}
       className="space-y-8"
     >
+      {/* Smart Notification Alert */}
+      {!notificationsEnabled && expiringSoon.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 p-6 rounded-[2.5rem] flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <BellOff className="text-amber-600 dark:text-amber-400" size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white">Pengingat Pintar Nonaktif</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ada {expiringSoon.length} bahan hampir kedaluwarsa. Aktifkan notifikasi agar tidak terbuang sia-sia!</p>
+            </div>
+          </div>
+          <button 
+            onClick={requestNotificationPermission}
+            className="px-6 py-3 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-all flex-shrink-0"
+          >
+            Aktifkan Sekarang
+          </button>
+        </motion.div>
+      )}
+
       {/* Stats Bento Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
@@ -1008,6 +1184,20 @@ function Dashboard({ foodItems, setActiveTab, onEdit }: { foodItems: FoodItem[],
               <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">Kelola semua stok makanan Anda di sini.</p>
             </div>
             <div className="flex gap-2">
+              <button 
+                onClick={async () => {
+                  if (notificationsEnabled) {
+                    setNotificationsEnabled(false);
+                    localStorage.setItem('dapur_notifications', 'false');
+                  } else {
+                    await requestNotificationPermission();
+                  }
+                }}
+                className={`p-3 rounded-2xl transition-all shadow-sm border ${notificationsEnabled ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-gray-900 text-gray-400 border-gray-100 dark:border-gray-800 hover:text-emerald-600'}`}
+                title={notificationsEnabled ? "Notifikasi Aktif" : "Aktifkan Pengingat"}
+              >
+                {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
+              </button>
               <button 
                 onClick={() => setShowSearch(!showSearch)}
                 className={`p-3 rounded-2xl transition-all shadow-sm border ${showSearch ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-gray-900 text-gray-400 border-gray-100 dark:border-gray-800 hover:text-emerald-600'}`}
@@ -1161,26 +1351,42 @@ function SmartScanModal({
   const [detectedItems, setDetectedItems] = useState<AnalyzedItem[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [step, setStep] = useState<"scan" | "review">("scan");
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Browser Anda tidak mendukung akses kamera langsung.");
+      return;
+    }
+
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         } 
       });
+      
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Explicitly play for mobile browsers
+        // Mute is often required for autoplay on mobile
+        videoRef.current.muted = true;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(e => console.error("Video play error:", e));
+          videoRef.current?.play().catch(e => {
+            console.error("Video play error:", e);
+            setError("Gagal memulai video. Coba klik tombol Ambil Foto atau Upload.");
+          });
         };
       }
-    } catch (err) {
-      setError("Gagal mengakses kamera. Pastikan izin diberikan.");
+    } catch (err: any) {
+      console.error("Camera access error:", err);
+      if (err.name === "NotAllowedError") {
+        setError("Izin kamera ditolak. Silakan aktifkan di pengaturan browser.");
+      } else {
+        setError("Gagal mengakses kamera. Gunakan fitur Upload Struk jika masalah berlanjut.");
+      }
     }
   };
 
@@ -1332,18 +1538,32 @@ function SmartScanModal({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={captureAndAnalyze}
-                  disabled={isScanning || !stream}
-                  className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
-                >
-                  <Scan size={20} />
-                  Ambil Foto
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {stream ? (
+                  <button 
+                    onClick={captureAndAnalyze}
+                    disabled={isScanning}
+                    className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    <Scan size={20} />
+                    Ambil Foto (Live)
+                  </button>
+                ) : (
+                  <label className="py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all">
+                    <Camera size={20} />
+                    Buka Kamera HP
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment" 
+                      onChange={handleFileUpload} 
+                      className="hidden" 
+                    />
+                  </label>
+                )}
                 <label className="py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
                   <Camera size={20} />
-                  Upload Struk
+                  Upload Foto/Struk
                   <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
                 </label>
               </div>
@@ -1891,12 +2111,24 @@ function HistoryView({ history }: { history: UsageHistory[] }) {
   );
 }
 
-function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfile | null }) {
+function ProfileView({ 
+  user, 
+  userProfile,
+  sendLocalNotification,
+  requestNotificationPermission
+}: { 
+  user: User, 
+  userProfile: UserProfile | null,
+  sendLocalNotification: (title: string, body: string) => void,
+  requestNotificationPermission: () => Promise<boolean>
+}) {
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [fullName, setFullName] = useState(userProfile?.fullName || "");
   const [age, setAge] = useState(userProfile?.age?.toString() || "");
   const [origin, setOrigin] = useState(userProfile?.origin || "");
   const [photoURL, setPhotoURL] = useState(user.photoURL || "");
+  const [reminderEmail, setReminderEmail] = useState(userProfile?.reminderEmail || user.email || "");
+  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(userProfile?.emailRemindersEnabled || false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
@@ -1908,8 +2140,10 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
       setFullName(userProfile.fullName || "");
       setAge(userProfile.age?.toString() || "");
       setOrigin(userProfile.origin || "");
+      setReminderEmail(userProfile.reminderEmail || user.email || "");
+      setEmailRemindersEnabled(userProfile.emailRemindersEnabled || false);
     }
-  }, [userProfile]);
+  }, [userProfile, user.email]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1978,6 +2212,8 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
         age: Number(age) || 0,
         origin,
         photoURL,
+        reminderEmail,
+        emailRemindersEnabled,
         updatedAt: serverTimestamp()
       });
 
@@ -2114,6 +2350,67 @@ function ProfileView({ user, userProfile }: { user: User, userProfile: UserProfi
                 className="w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent rounded-[1.5rem] focus:bg-white dark:focus:bg-gray-900 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600"
               />
               <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium ml-1">Gunakan URL gambar publik untuk memperbarui foto profil Anda.</p>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-gray-100 dark:border-gray-800 space-y-4">
+            <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+              <Bell size={18} className="text-emerald-500" />
+              Pengaturan Notifikasi Pintar
+            </h3>
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-bold text-gray-900 dark:text-white block">Email Reminder</label>
+                  <p className="text-[10px] text-gray-500 font-medium tracking-wide">Kirim rangkuman barang kedaluwarsa ke email.</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setEmailRemindersEnabled(!emailRemindersEnabled)}
+                  className={`w-12 h-6 rounded-full transition-all relative ${emailRemindersEnabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${emailRemindersEnabled ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+
+              {emailRemindersEnabled && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Alamat Email Pengingat</label>
+                    <input 
+                      required={emailRemindersEnabled}
+                      type="email" 
+                      value={reminderEmail}
+                      onChange={e => setReminderEmail(e.target.value)}
+                      className="w-full px-6 py-4 bg-white dark:bg-gray-900 border-2 border-transparent rounded-2xl focus:border-emerald-500 transition-all font-bold text-gray-900 dark:text-white"
+                      placeholder="nama@email.com"
+                    />
+                  </div>
+                  
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-start gap-3">
+                    <Info size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
+                      Catatan: Pengiriman email otomatis memerlukan integrasi email gateway (SendGrid/Resend). Untuk saat ini, sistem akan mencatat preferensi Anda.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sendLocalNotification(
+                      "Tes Notifikasi Berhasil! 🎉",
+                      "Ini adalah contoh bagaimana DapurPintar akan mengingatkan Anda nanti."
+                    );
+                  }}
+                  className="w-full py-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-2xl font-bold text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700"
+                >
+                  <RefreshCw size={14} />
+                  Kirim Notifikasi Tes
+                </button>
+              </div>
             </div>
           </div>
 
