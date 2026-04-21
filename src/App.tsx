@@ -11,7 +11,7 @@ import {
   updateProfile,
   sendPasswordResetEmail
 } from "firebase/auth";
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp, getDocFromServer, setDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp, getDocFromServer, setDoc, deleteField } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plus, 
@@ -2500,9 +2500,38 @@ function ProfileView({
                         Catatan: Sistem mendeteksi bahan yang kedaluwarsa dalam 3 hari ke depan. Pastikan nama profil Anda sudah diisi agar email terlihat personal.
                       </p>
                       {userProfile?.lastReminderSentAt && (
-                        <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider">
-                          Email Terakhir: {format(userProfile.lastReminderSentAt.toDate(), "dd MMM, HH:mm")}
-                        </p>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider">
+                            Email Terakhir: {format(userProfile.lastReminderSentAt.toDate(), "dd MMM, HH:mm")}
+                          </p>
+                          {(() => {
+                             const diff = Date.now() - userProfile.lastReminderSentAt.toDate().getTime();
+                             const cooldown = 24 * 60 * 60 * 1000;
+                             if (diff < cooldown) {
+                               const remainingHrs = Math.ceil((cooldown - diff) / (60 * 60 * 1000));
+                               return (
+                                 <div className="flex items-center gap-2">
+                                   <p className="text-[8px] text-gray-400 font-medium italic">
+                                     Otomatisasi dikunci selama {remainingHrs} jam lagi (anti-spam).
+                                   </p>
+                                   <button 
+                                     type="button"
+                                     onClick={async () => {
+                                       await updateDoc(doc(db, "users", user.uid), {
+                                         lastReminderSentAt: deleteField()
+                                       });
+                                       setMessage({ type: "success", text: "Waktu tunggu direset! Email otomatis akan segera dikirim." });
+                                     }}
+                                     className="text-[8px] text-emerald-500 font-black underline uppercase"
+                                   >
+                                     Reset Sekarang
+                                   </button>
+                                 </div>
+                               );
+                             }
+                             return null;
+                          })()}
+                        </div>
                       )}
                     </div>
                   </div>
