@@ -981,6 +981,7 @@ export default function App() {
                 key="profile" 
                 user={user} 
                 userProfile={userProfile} 
+                foodItems={foodItems}
                 sendLocalNotification={sendLocalNotification}
                 requestNotificationPermission={requestNotificationPermission}
               />
@@ -2180,11 +2181,13 @@ function HistoryView({ history }: { history: UsageHistory[] }) {
 function ProfileView({ 
   user, 
   userProfile,
+  foodItems,
   sendLocalNotification,
   requestNotificationPermission
 }: { 
   user: User, 
   userProfile: UserProfile | null,
+  foodItems: FoodItem[],
   sendLocalNotification: (title: string, body: string) => void,
   requestNotificationPermission: () => Promise<boolean>
 }) {
