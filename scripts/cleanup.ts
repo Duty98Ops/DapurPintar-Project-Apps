@@ -5,7 +5,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 // Configuration
-const RETENTION_DAYS = 30; // Data older than this will be deleted
+const RETENTION_DAYS = 180; // Data older than 6 months will be deleted
 const BATCH_SIZE = 500;
 
 async function cleanup() {

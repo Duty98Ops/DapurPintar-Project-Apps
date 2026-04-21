@@ -1,5 +1,5 @@
 {
   "name": "DapurPintar",
-  "description": "Aplikasi manajemen stok makanan rumah tangga dengan pengingat kedaluwarsa dan rekomendasi resep cerdas.",
+  "description": "Manajemen stok makanan cerdas dengan pengingat kedaluwarsa, rekomendasi resep AI, dan Waste Analytics untuk melacak skor keberlanjutan dapur Anda.",
   "requestFramePermissions": ["notifications", "camera"]
 }

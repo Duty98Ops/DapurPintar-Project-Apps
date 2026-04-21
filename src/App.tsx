@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp, getDocFromServer, setDoc, deleteField } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
+import WasteAnalytics from "./components/WasteAnalytics";
 import { 
   Plus, 
   LogOut, 
@@ -43,7 +44,8 @@ import {
   Check,
   Bell,
   BellOff,
-  Mail
+  Mail,
+  BarChart3
 } from "lucide-react";
 import { format, differenceInDays, isPast, isToday, addDays } from "date-fns";
 import { getRecipeRecommendations, Recipe, analyzeImageForInventory, AnalyzedItem } from "./services/geminiService";
@@ -182,7 +184,7 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [history, setHistory] = useState<UsageHistory[]>([]);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "add" | "recipes" | "history" | "profile">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "add" | "recipes" | "history" | "profile" | "analytics">("dashboard");
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -976,6 +978,9 @@ export default function App() {
             {activeTab === "history" && (
               <HistoryView key="history" history={history} />
             )}
+            {activeTab === "analytics" && (
+              <WasteAnalytics key="analytics" history={history} isDarkMode={isDarkMode} />
+            )}
             {activeTab === "profile" && (
               <ProfileView 
                 key="profile" 
@@ -1015,6 +1020,12 @@ export default function App() {
               onClick={() => setActiveTab("history")} 
               icon={<History />} 
               label="Riwayat" 
+            />
+            <NavButton 
+              active={activeTab === "analytics"} 
+              onClick={() => setActiveTab("analytics")} 
+              icon={<BarChart3 />} 
+              label="Limbah" 
             />
           </nav>
         </div>
