@@ -405,62 +405,6 @@ export default function App() {
       if (docSnap.exists()) {
         const data = docSnap.data() as UserProfile;
         setUserProfile(data);
-        
-        // Automated Reminder Check logic moved here for direct profile access
-        const checkReminders = async () => {
-          if (!data.emailRemindersEnabled) return;
-          
-          const now = new Date();
-          const lastSent = data.lastReminderSentAt?.toDate();
-          
-          // Check if we already sent an email in the last 24 hours
-          if (lastSent && (now.getTime() - lastSent.getTime()) < 24 * 60 * 60 * 1000) {
-            return;
-          }
-
-          // Check if foodItems are loaded and find expiring ones
-          if (foodItems.length > 0) {
-            const threeDaysFromNow = addDays(new Date(), 3);
-            const expiringItems = foodItems.filter(item => {
-              const expiryDate = item.expiryDate.toDate();
-              return expiryDate <= threeDaysFromNow && expiryDate > new Date(new Date().setHours(0,0,0,0));
-            });
-
-            if (expiringItems.length > 0) {
-              console.log("DEBUG: Auto-triggering reminder via frontend check...");
-              try {
-                const response = await fetch("/api/send-automated-reminder", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    email: data.reminderEmail || data.email,
-                    name: data.fullName || data.displayName,
-                    expiringItems: expiringItems.map(item => ({
-                      name: item.name,
-                      quantity: item.quantity,
-                      unit: item.unit,
-                      expiryDate: item.expiryDate.toDate().toISOString()
-                    }))
-                  })
-                });
-                
-                if (response.ok) {
-                  await updateDoc(doc(db, "users", user.uid), {
-                    lastReminderSentAt: serverTimestamp()
-                  });
-                  console.log("DEBUG: Automated reminder successfully sent and logged.");
-                } else {
-                  const errorText = await response.text();
-                  console.error(`DEBUG: Automated reminder API failed (${response.status}):`, errorText);
-                }
-              } catch (err) {
-                console.error("Error sending automated reminder:", err);
-              }
-            }
-          }
-        };
-
-        checkReminders();
       } else {
         // Initialize profile if it doesn't exist
         const initialProfile: Partial<UserProfile> = {
@@ -487,6 +431,69 @@ export default function App() {
       unsubProfile();
     };
   }, [user, isAuthReady]);
+
+  const isReminderProcessing = useRef(false);
+
+  // Dedicated Automated Reminder Effect
+  useEffect(() => {
+    if (!user || !userProfile || foodItems.length === 0 || isReminderProcessing.current) return;
+
+    const checkReminders = async () => {
+      if (!userProfile.emailRemindersEnabled) return;
+      
+      const now = new Date();
+      const lastSent = userProfile.lastReminderSentAt?.toDate();
+      
+      // Strict check: if sent in last 24h, absolutely don't send
+      if (lastSent && (now.getTime() - lastSent.getTime()) < 24 * 60 * 60 * 1000) {
+        return;
+      }
+
+      const threeDaysFromNow = addDays(new Date(), 3);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const expiringItems = foodItems.filter(item => {
+        const expiryDate = item.expiryDate.toDate();
+        return expiryDate <= threeDaysFromNow && expiryDate >= todayStart;
+      });
+
+      if (expiringItems.length > 0) {
+        isReminderProcessing.current = true;
+        try {
+          const response = await fetch("/api/send-automated-reminder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userProfile.reminderEmail || userProfile.email,
+              name: userProfile.fullName || userProfile.displayName,
+              expiringItems: expiringItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                unit: item.unit,
+                expiryDate: item.expiryDate.toDate().toISOString()
+              }))
+            })
+          });
+          
+          if (response.ok) {
+            await updateDoc(doc(db, "users", user.uid), {
+              lastReminderSentAt: serverTimestamp()
+            });
+          }
+        } catch (err) {
+          console.error("Error sending automated reminder:", err);
+        } finally {
+          // Release lock after a delay to allow Firestore state to sync
+          setTimeout(() => {
+            isReminderProcessing.current = false;
+          }, 10000); 
+        }
+      }
+    };
+
+    checkReminders();
+  }, [user, userProfile, foodItems]);
 
   const handleLogin = async () => {
     if (isAuthSubmitting) return;
@@ -2488,10 +2495,66 @@ function ProfileView({
                   
                   <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-start gap-3">
                     <Info size={16} className="text-emerald-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
-                      Catatan: Sistem akan otomatis mengecek stok dapur Anda setiap 6 jam dan mengirimkan peringatan jika ada bahan yang akan kedaluwarsa via Brevo.
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
+                        Catatan: Sistem mendeteksi bahan yang kedaluwarsa dalam 3 hari ke depan. Pastikan nama profil Anda sudah diisi agar email terlihat personal.
+                      </p>
+                      {userProfile?.lastReminderSentAt && (
+                        <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider">
+                          Email Terakhir: {format(userProfile.lastReminderSentAt.toDate(), "dd MMM, HH:mm")}
+                        </p>
+                      )}
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (foodItems.length === 0) return;
+                      const threeDaysFromNow = addDays(new Date(), 3);
+                      const todayStart = new Date();
+                      todayStart.setHours(0,0,0,0);
+                      const expiringItems = foodItems.filter(i => {
+                        const d = i.expiryDate.toDate();
+                        return d <= threeDaysFromNow && d >= todayStart;
+                      });
+
+                      if (expiringItems.length === 0) {
+                        setMessage({ type: "error", text: "Tidak ada bahan yang kedaluwarsa dalam 3 hari ke depan." });
+                        return;
+                      }
+
+                      setIsTestingEmail(true);
+                      try {
+                        const response = await fetch("/api/send-automated-reminder", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            email: reminderEmail,
+                            name: displayName || fullName,
+                            expiringItems: expiringItems.map(item => ({
+                              name: item.name,
+                              quantity: item.quantity,
+                              unit: item.unit,
+                              expiryDate: item.expiryDate.toDate().toISOString()
+                            }))
+                          })
+                        });
+                        if (response.ok) {
+                          await updateDoc(doc(db, "users", user.uid), { lastReminderSentAt: serverTimestamp() });
+                          setMessage({ type: "success", text: "Email peringatan (asli) berhasil dikirim ulang!" });
+                        }
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setIsTestingEmail(false);
+                      }
+                    }}
+                    className="w-full py-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold text-[10px] hover:bg-emerald-200 transition-all flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800"
+                  >
+                    <RefreshCw size={12} />
+                    Kirim Ulang Email Peringatan Sekarang
+                  </button>
                 </div>
               )}
 
