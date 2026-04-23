@@ -1,0 +1,30 @@
+name: Automated Reminders
+
+on:
+  schedule:
+    # Run every day at 01:00 UTC (08:00 WIB)
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Send Reminders
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          FIRESTORE_DATABASE_ID: ${{ secrets.FIRESTORE_DATABASE_ID }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: npm run send-reminders

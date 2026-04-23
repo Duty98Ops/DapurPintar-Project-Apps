@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "cleanup": "tsx scripts/cleanup.ts"
+    "cleanup": "tsx scripts/cleanup.ts",
+    "send-reminders": "tsx scripts/send-reminders.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

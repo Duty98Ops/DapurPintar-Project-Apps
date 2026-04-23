@@ -457,7 +457,7 @@ export default function App() {
 
       const expiringItems = foodItems.filter(item => {
         const expiryDate = item.expiryDate.toDate();
-        return expiryDate <= threeDaysFromNow && expiryDate >= todayStart;
+        return expiryDate <= threeDaysFromNow;
       });
 
       if (expiringItems.length > 0) {
