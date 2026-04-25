@@ -446,8 +446,8 @@ export default function App() {
       const now = new Date();
       const lastSent = userProfile.lastReminderSentAt?.toDate();
       
-      // Strict check: if sent in last 24h, absolutely don't send
-      if (lastSent && (now.getTime() - lastSent.getTime()) < 24 * 60 * 60 * 1000) {
+      // Strict check: if sent in last 20h, don't send (relaxed from 24h for consistency)
+      if (lastSent && (now.getTime() - lastSent.getTime()) < 20 * 60 * 60 * 1000) {
         return;
       }
 

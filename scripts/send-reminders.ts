@@ -53,11 +53,11 @@ async function sendReminders() {
 
       console.log(`- Checking user: ${userEmail} (${userId})`);
 
-      // 2. Check if sent in last 24h
+      // 2. Check if sent in last 20h (relaxed from 24h to account for cron jitter)
       const now = new Date();
       const lastSent = userData.lastReminderSentAt?.toDate();
-      if (lastSent && (now.getTime() - lastSent.getTime()) < 24 * 60 * 60 * 1000) {
-        console.log(`  - Skipping: Already sent in the last 24h.`);
+      if (lastSent && (now.getTime() - lastSent.getTime()) < 20 * 60 * 60 * 1000) {
+        console.log(`  - Skipping: Already sent in the last 20h.`);
         continue;
       }
 
